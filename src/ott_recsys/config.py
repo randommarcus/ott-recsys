@@ -14,10 +14,19 @@ class Config:
     raw_dir: Path = ROOT / "data" / "raw"
     processed_dir: Path = ROOT / "data" / "processed"
 
-    # Optional cap for big datasets: keep only the N most active users (None = all)
-    max_users: int | None = (
-        int(os.environ["OTT_MAX_USERS"]) if os.getenv("OTT_MAX_USERS") else None
+    # Big datasets: random sample of N users (all of their ratings are kept).
+    # None = use every user.
+    sample_users: int | None = (
+        int(os.environ["OTT_SAMPLE_USERS"]) if os.getenv("OTT_SAMPLE_USERS") else None
     )
+    sample_seed: int = int(os.getenv("OTT_SAMPLE_SEED", "42"))
+    min_sample_interactions: int = 20  # only users with at least this many are sampled
+
+    # Memory guard (scripts/guarded_run.py kills a run that exceeds this)
+    mem_limit_gb: float = float(os.getenv("OTT_MEM_LIMIT_GB", "7.5"))
+
+    # Tuning uses a seeded subsample of validation users (final table uses all)
+    tune_users: int = 3000
 
     # Interactions
     positive_threshold: float = 4.0  # rating >= this counts as a positive label
@@ -41,5 +50,11 @@ class Config:
         return self.raw_dir / self.dataset_name
 
     @property
+    def run_name(self) -> str:
+        if self.sample_users:
+            return f"{self.dataset_name}_u{self.sample_users}_s{self.sample_seed}"
+        return self.dataset_name
+
+    @property
     def out_dir(self) -> Path:
-        return self.processed_dir / self.dataset_name
+        return self.processed_dir / self.run_name

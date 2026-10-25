@@ -1,15 +1,34 @@
 """Run Module 1: audit, sessions, split; save to data/processed/<dataset>/."""
+import dataclasses
+import io
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
 import pandas as pd
 
 from ott_recsys.config import Config
 from ott_recsys.data import build_all
+from ott_recsys.memguard import Stages
+
+
+class Tee(io.StringIO):
+    def write(self, text):
+        sys.__stdout__.write(text)
+        return super().write(text)
+
 
 cfg = Config()
+buf = Tee()
+sys.stdout = buf
+stages = Stages()
+print("== CONFIG ==")
+for k, v in dataclasses.asdict(cfg).items():
+    print(f"{k:26s} {v}")
+print()
 r = build_all(cfg)
+stages.done("load, sample, audit, sessions, global split")
 cfg.out_dir.mkdir(parents=True, exist_ok=True)
 for name in ["train", "val", "test"]:
     r[name].to_parquet(cfg.out_dir / f"{name}.parquet", index=False)
@@ -39,3 +58,8 @@ print("cutoffs:", {k: pd.to_datetime(v, unit='s') for k, v in r["cuts"].items()}
 print("\n== COLD START ==")
 for n, c in r["cold"].items():
     print(n, c)
+
+stages.done("save + report")
+sys.stdout = sys.__stdout__
+(ROOT / "reports").mkdir(exist_ok=True)
+(ROOT / "reports" / f"module1_audit_{cfg.run_name}.txt").write_text(buf.getvalue())

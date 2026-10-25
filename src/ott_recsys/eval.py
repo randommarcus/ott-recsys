@@ -24,20 +24,32 @@ class EvalResult:
     catalog: np.ndarray
 
 
+def _top_one(s: np.ndarray, k: int) -> np.ndarray:
+    """Indices of the k highest scores; ties go to the lower index (identical
+    to a full stable sort, but only sorts the candidates near the cut)."""
+    n = len(s)
+    if k < n:
+        thr = np.partition(s, n - k)[n - k]  # k-th largest value
+        cand = np.flatnonzero(s >= thr)
+        if len(cand) <= 20 * k:
+            return cand[np.argsort(-s[cand], kind="stable")][:k]
+    return np.argsort(-s, kind="stable")[:k]
+
+
 def rank_top(scores: np.ndarray, seen: list[np.ndarray], k_max: int) -> np.ndarray:
-    """Top-k_max catalog indices per user. Ties break toward the lower item
-    index (stable sort), so results are deterministic."""
+    """Top-k_max catalog indices per user with already-seen items removed.
+    Deterministic: ties break toward the lower item index."""
     out = np.empty((len(scores), k_max), dtype=np.int64)
     for i, row in enumerate(scores):
         s = np.asarray(row, dtype=np.float64).copy()
         s[seen[i]] = -np.inf
-        out[i] = np.argsort(-s, kind="stable")[:k_max]
+        out[i] = _top_one(s, k_max)
     return out
 
 
 def evaluate(model, fit_df: pd.DataFrame, eval_df: pd.DataFrame, catalog: np.ndarray,
              query_hours: pd.Series | None = None, ks=KS, ndcg_k: int = 10,
-             cov_k: int = 10) -> EvalResult:
+             cov_k: int = 10, chunk: int = 500) -> EvalResult:
     cat_index = pd.Index(catalog)
     truth_df = eval_df[eval_df["label"] == 1]
     users = np.sort(truth_df["user_id"].unique())
@@ -49,10 +61,14 @@ def evaluate(model, fit_df: pd.DataFrame, eval_df: pd.DataFrame, catalog: np.nda
     seen = [seen_map.get(u, np.empty(0, dtype=np.int64)) for u in users]
 
     hours = None if query_hours is None else query_hours.reindex(users).to_numpy()
-    scores = model.score(users, hours)
-    assert scores.shape == (len(users), len(catalog)), "score matrix has wrong shape"
     k_max = min(max(max(ks), ndcg_k, cov_k), len(catalog))
-    top = rank_top(scores, seen, k_max)
+    top = np.empty((len(users), k_max), dtype=np.int64)
+    for a in range(0, len(users), chunk):  # score in chunks: users x items may not fit in RAM
+        b = min(a + chunk, len(users))
+        scores = model.score(users[a:b], None if hours is None else hours[a:b])
+        assert scores.shape == (b - a, len(catalog)), "score matrix has wrong shape"
+        top[a:b] = rank_top(scores, seen[a:b], k_max)
+        del scores
 
     discount = 1.0 / np.log2(np.arange(2, ndcg_k + 2))
     cols = {f"{v}_{m}": np.full(len(users), np.nan)
@@ -111,3 +127,13 @@ def first_hour(df: pd.DataFrame) -> pd.Series:
     timestamp is used, never the label or the item."""
     d = df.sort_values(["user_id", "timestamp", "item_id"])
     return d.groupby("user_id")["hour"].first()
+
+
+def paired_diff(a: pd.Series, b: pd.Series, n_boot: int = 2000, seed: int = 0) -> tuple[float, float, float]:
+    """Mean of (a - b) over users with a 95% bootstrap interval. Both models are
+    scored on the same users, so this is much sharper than comparing two
+    separate intervals."""
+    d = (a - b).dropna().to_numpy()
+    rng = np.random.default_rng(seed)
+    means = d[rng.integers(0, len(d), (n_boot, len(d)))].mean(axis=1)
+    return float(d.mean()), *map(float, np.percentile(means, [2.5, 97.5]))

@@ -1,0 +1,249 @@
+== CONFIG ==
+dataset_name               ml-25m
+raw_dir                    /home/sudu/ott-recsys/data/raw
+processed_dir              /home/sudu/ott-recsys/data/processed
+sample_users               20000
+sample_seed                42
+min_sample_interactions    20
+mem_limit_gb               7.5
+tune_users                 3000
+positive_threshold         4.0
+session_gap_minutes        30
+burst_window_minutes       10
+burst_min_ratings          30
+train_frac                 0.7
+val_frac                   0.15
+min_user_interactions      10
+user_test_frac             0.2
+user_val_frac              0.1
+
+grids: {'hour_pop': {'window': [0, 1, 3, 6], 'lam': [50.0, 500.0, 5000.0, 50000.0, 500000.0, 5000000.0]}, 'item_knn': {'k': [100, 200, 500, 1000, 1500], 'shrink': [0.0, 1.0, 3.0, 10.0, 50.0]}}
+== DATA == users=20000 movies(catalog)=33392 train/val rows=2187571/301690
+
+== VALIDATION RESULTS (ml-25m_u20000_s42; fit on train, test locked) ==
+tuned on 3000 validation users (seeded subsample); table uses all
+best params: {'hour_pop': {'window': 3, 'lam': 50000.0}, 'item_knn': {'k': 500, 'shrink': 0.0}}
+parameters at the edge of their grid: {'item_knn': ['shrink']}
+validation vs train (cold report): {'rows': 301690, 'items': 16949, 'items_not_in_fit': 2101, 'rows_on_new_items': 2323, 'share_rows_on_new_items': 0.007699956909410322, 'likes': 141159, 'likes_on_new_items': 509}
+
+--- PAIRED DIFFERENCES over the same users: mean [95% CI]; CI excluding 0 = real difference ---
+hour_pop - global_pop | all_ndcg@10                        +0.0004 [-0.0000, +0.0008]  (not distinguishable from 0)
+hour_pop - global_pop | all_recall@10                      +0.0016 [+0.0007, +0.0025]  *
+hour_pop - global_pop | all_recall@50                      +0.0017 [+0.0007, +0.0027]  *
+hour_pop - hour_pop_shuffled | all_ndcg@10                 +0.0004 [+0.0000, +0.0008]  *
+hour_pop - hour_pop_shuffled | all_recall@10               +0.0016 [+0.0008, +0.0025]  *
+hour_pop - hour_pop_shuffled | all_recall@50               +0.0018 [+0.0010, +0.0027]  *
+item_knn - global_pop | all_ndcg@10                        +0.0424 [+0.0398, +0.0449]  *
+item_knn - global_pop | all_recall@10                      +0.0521 [+0.0487, +0.0552]  *
+item_knn - global_pop | all_recall@50                      +0.1261 [+0.1217, +0.1307]  *
+
+--- ALL validation likes (mean [95% CI over users]) ---
+                              recall@10             recall@50            recall@200               ndcg@10  users coverage@10
+random             0.0003 [0.000-0.000]  0.0014 [0.001-0.002]  0.0063 [0.006-0.007]  0.0004 [0.000-0.001]  18530      0.1455
+global_pop         0.0633 [0.061-0.066]  0.1804 [0.176-0.184]  0.3814 [0.376-0.387]  0.0555 [0.054-0.057]  18530      0.0046
+hour_pop           0.0649 [0.062-0.068]  0.1820 [0.178-0.186]  0.3846 [0.379-0.389]  0.0559 [0.054-0.058]  18530      0.0049
+item_knn           0.1154 [0.112-0.119]  0.3064 [0.302-0.311]  0.5840 [0.579-0.589]  0.0980 [0.096-0.100]  18530      0.0661
+hour_pop_shuffled  0.0633 [0.061-0.066]  0.1802 [0.176-0.184]  0.3814 [0.376-0.386]  0.0555 [0.054-0.057]  18530      0.0047
+
+--- WARM likes (item seen in train) (mean [95% CI over users]) ---
+                              recall@10             recall@50            recall@200               ndcg@10  users
+random             0.0003 [0.000-0.000]  0.0014 [0.001-0.002]  0.0063 [0.006-0.007]  0.0004 [0.000-0.001]  18526
+global_pop         0.0633 [0.061-0.066]  0.1805 [0.176-0.185]  0.3816 [0.376-0.387]  0.0556 [0.054-0.057]  18526
+hour_pop           0.0650 [0.062-0.067]  0.1821 [0.178-0.186]  0.3848 [0.379-0.390]  0.0559 [0.054-0.058]  18526
+item_knn           0.1155 [0.112-0.119]  0.3066 [0.301-0.311]  0.5844 [0.579-0.589]  0.0980 [0.096-0.100]  18526
+hour_pop_shuffled  0.0633 [0.061-0.066]  0.1803 [0.176-0.185]  0.3816 [0.376-0.387]  0.0555 [0.054-0.057]  18526
+
+--- COLD likes (item never seen in train) (mean [95% CI over users]) ---
+                              recall@10             recall@50            recall@200               ndcg@10 users
+random             0.0000 [0.000-0.000]  0.0042 [0.000-0.013]  0.0042 [0.000-0.013]  0.0000 [0.000-0.000]   236
+global_pop         0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]   236
+hour_pop           0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]   236
+item_knn           0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]   236
+hour_pop_shuffled  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]   236
+
+(held-out likes shown are from VALIDATION; the test portion is locked)
+
+=== user 5816: 19 train ratings (11 likes), 2 validation likes ===
+  recent train likes: Gone in 60 Seconds (2000); What Lies Beneath (2000); True Lies (1994); Flight of the Navigator (1986); Mummy, The (1999); Kid in King Arthur's Court, A (1995); Jurassic Park (1993); Dances with Wolves (1990)
+  validation likes:   Mission: Impossible (1996); Men in Black (a.k.a. MIB) (1997)
+  top-10 global_pop (0 hits):
+      1.   Shawshank Redemption, The (1994)
+      2.   Pulp Fiction (1994)
+      3.   Forrest Gump (1994)
+      4.   Silence of the Lambs, The (1991)
+      5.   Matrix, The (1999)
+      6.   Star Wars: Episode IV - A New Hope (1977)
+      7.   Schindler's List (1993)
+      8.   Fight Club (1999)
+      9.   Star Wars: Episode V - The Empire Strikes Back (1980)
+     10.   Usual Suspects, The (1995)
+  top-10 hour_pop (0 hits):
+      1.   Shawshank Redemption, The (1994)
+      2.   Pulp Fiction (1994)
+      3.   Matrix, The (1999)
+      4.   Forrest Gump (1994)
+      5.   Silence of the Lambs, The (1991)
+      6.   Star Wars: Episode IV - A New Hope (1977)
+      7.   Star Wars: Episode V - The Empire Strikes Back (1980)
+      8.   Fight Club (1999)
+      9.   Schindler's List (1993)
+     10.   Godfather, The (1972)
+  top-10 item_knn (1 hit):
+      1.   Terminator 2: Judgment Day (1991)
+      2. ✓ Men in Black (a.k.a. MIB) (1997)
+      3.   Braveheart (1995)
+      4.   Speed (1994)
+      5.   Fugitive, The (1993)
+      6.   Forrest Gump (1994)
+      7.   Face/Off (1997)
+      8.   Die Hard: With a Vengeance (1995)
+      9.   Sixth Sense, The (1999)
+     10.   Gladiator (2000)
+
+=== user 88805: 32 train ratings (18 likes), 1 validation likes ===
+  recent train likes: Schindler's List (1993); Babe (1995); Apollo 13 (1995); Three Colors: Red (Trois couleurs: Rouge) (1994); Three Colors: Blue (Trois couleurs: Bleu) (1993); Three Colors: White (Trzy kolory: Bialy) (1994); Like Water for Chocolate (Como agua para chocolate) (1992); What's Eating Gilbert Grape (1993)
+  validation likes:   Madness of King George, The (1994)
+  top-10 global_pop (0 hits):
+      1.   Pulp Fiction (1994)
+      2.   Forrest Gump (1994)
+      3.   Silence of the Lambs, The (1991)
+      4.   Matrix, The (1999)
+      5.   Fight Club (1999)
+      6.   Star Wars: Episode V - The Empire Strikes Back (1980)
+      7.   Usual Suspects, The (1995)
+      8.   Godfather, The (1972)
+      9.   Lord of the Rings: The Fellowship of the Ring, The (2001)
+     10.   Braveheart (1995)
+  top-10 hour_pop (0 hits):
+      1.   Pulp Fiction (1994)
+      2.   Silence of the Lambs, The (1991)
+      3.   Forrest Gump (1994)
+      4.   Matrix, The (1999)
+      5.   Fight Club (1999)
+      6.   Star Wars: Episode V - The Empire Strikes Back (1980)
+      7.   Godfather, The (1972)
+      8.   Usual Suspects, The (1995)
+      9.   Lord of the Rings: The Fellowship of the Ring, The (2001)
+     10.   Raiders of the Lost Ark (Indiana Jones and the Raiders of the Lost Ark) (1981)
+  top-10 item_knn (0 hits):
+      1.   Silence of the Lambs, The (1991)
+      2.   Pulp Fiction (1994)
+      3.   Usual Suspects, The (1995)
+      4.   Dead Man Walking (1995)
+      5.   Leaving Las Vegas (1995)
+      6.   Forrest Gump (1994)
+      7.   Fugitive, The (1993)
+      8.   Sense and Sensibility (1995)
+      9.   Taxi Driver (1976)
+     10.   Four Weddings and a Funeral (1994)
+
+=== user 15781: 56 train ratings (39 likes), 7 validation likes ===
+  recent train likes: Space Jam (1996); Small Soldiers (1998); Home Alone 2: Lost in New York (1992); Mary Poppins (1964); Alice in Wonderland (1951); Fox and the Hound, The (1981); James and the Giant Peach (1996); Evita (1996)
+  validation likes:   Men in Black (a.k.a. MIB) (1997); Star Wars: Episode I - The Phantom Menace (1999); Bicentennial Man (1999); Terminator 2: Judgment Day (1991); Matrix, The (1999); Godzilla (1998); Lost World: Jurassic Park, The (1997)
+  top-10 global_pop (1 hit):
+      1.   Shawshank Redemption, The (1994)
+      2.   Pulp Fiction (1994)
+      3.   Forrest Gump (1994)
+      4.   Silence of the Lambs, The (1991)
+      5. ✓ Matrix, The (1999)
+      6.   Schindler's List (1993)
+      7.   Fight Club (1999)
+      8.   Star Wars: Episode V - The Empire Strikes Back (1980)
+      9.   Usual Suspects, The (1995)
+     10.   Godfather, The (1972)
+  top-10 hour_pop (1 hit):
+      1.   Shawshank Redemption, The (1994)
+      2.   Pulp Fiction (1994)
+      3.   Silence of the Lambs, The (1991)
+      4.   Forrest Gump (1994)
+      5. ✓ Matrix, The (1999)
+      6.   Schindler's List (1993)
+      7.   Fight Club (1999)
+      8.   Star Wars: Episode V - The Empire Strikes Back (1980)
+      9.   Usual Suspects, The (1995)
+     10.   Godfather, The (1972)
+  top-10 item_knn (0 hits):
+      1.   Cinderella (1950)
+      2.   Peter Pan (1953)
+      3.   Snow White and the Seven Dwarfs (1937)
+      4.   Little Mermaid, The (1989)
+      5.   Santa Clause, The (1994)
+      6.   Anastasia (1997)
+      7.   Sword in the Stone, The (1963)
+      8.   101 Dalmatians (One Hundred and One Dalmatians) (1961)
+      9.   Jungle Book, The (1967)
+     10.   Prince of Egypt, The (1998)
+
+=== user 126481: 102 train ratings (52 likes), 11 validation likes ===
+  recent train likes: Lost in Translation (2003); Talk to Her (Hable con Ella) (2002); Vanilla Sky (2001); Urbania (2000); Rules of Attraction, The (2002); Broken Hearts Club, The (2000); A.I. Artificial Intelligence (2001); Mission: Impossible (1996)
+  validation likes:   Hook (1991); Star Trek II: The Wrath of Khan (1982); Harry Potter and the Chamber of Secrets (2002); Harry Potter and the Sorcerer's Stone (a.k.a. Harry Potter and the Philosopher's Stone) (2001); Spider-Man (2002); Star Wars: Episode VI - Return of the Jedi (1983); Lord of the Rings: The Two Towers, The (2002); Batman (1989); Star Wars: Episode V - The Empire Strikes Back (1980); Superman (1978)
+  top-10 global_pop (2 hits):
+      1.   Shawshank Redemption, The (1994)
+      2.   Pulp Fiction (1994)
+      3.   Forrest Gump (1994)
+      4.   Silence of the Lambs, The (1991)
+      5. ✓ Star Wars: Episode IV - A New Hope (1977)
+      6.   Schindler's List (1993)
+      7.   Fight Club (1999)
+      8. ✓ Star Wars: Episode V - The Empire Strikes Back (1980)
+      9.   Usual Suspects, The (1995)
+     10.   Godfather, The (1972)
+  top-10 hour_pop (2 hits):
+      1.   Shawshank Redemption, The (1994)
+      2.   Pulp Fiction (1994)
+      3.   Forrest Gump (1994)
+      4.   Silence of the Lambs, The (1991)
+      5. ✓ Star Wars: Episode IV - A New Hope (1977)
+      6.   Fight Club (1999)
+      7.   Schindler's List (1993)
+      8. ✓ Star Wars: Episode V - The Empire Strikes Back (1980)
+      9.   Godfather, The (1972)
+     10.   Lord of the Rings: The Fellowship of the Ring, The (2001)
+  top-10 item_knn (3 hits):
+      1. ✓ Star Wars: Episode V - The Empire Strikes Back (1980)
+      2.   Back to the Future (1985)
+      3.   Terminator, The (1984)
+      4.   Sixth Sense, The (1999)
+      5. ✓ Star Wars: Episode IV - A New Hope (1977)
+      6. ✓ Star Wars: Episode VI - Return of the Jedi (1983)
+      7.   Die Hard (1988)
+      8.   Saving Private Ryan (1998)
+      9.   Blade Runner (1982)
+     10.   Groundhog Day (1993)
+
+=== user 3472: 260 train ratings (162 likes), 23 validation likes ===
+  recent train likes: Miss Congeniality (2000); Big Momma's House (2000); Not Another Teen Movie (2001); Joy Ride (2001); Texas Rangers (2001); Clerks (1994); Lost World: Jurassic Park, The (1997); Aliens (1986)
+  validation likes:   Willow (1988); Ghostbusters (a.k.a. Ghost Busters) (1984); Men in Black (a.k.a. MIB) (1997); Saving Private Ryan (1998); Mission: Impossible (1996); Terminator, The (1984); Monty Python and the Holy Grail (1975); Breakfast Club, The (1985); Broken Arrow (1996); Blade Runner (1982)
+  top-10 global_pop (2 hits):
+      1.   Shawshank Redemption, The (1994)
+      2. ✓ Pulp Fiction (1994)
+      3. ✓ Forrest Gump (1994)
+      4.   Silence of the Lambs, The (1991)
+      5.   Matrix, The (1999)
+      6.   Star Wars: Episode IV - A New Hope (1977)
+      7.   Schindler's List (1993)
+      8.   Fight Club (1999)
+      9.   Star Wars: Episode V - The Empire Strikes Back (1980)
+     10.   Usual Suspects, The (1995)
+  top-10 hour_pop (2 hits):
+      1.   Shawshank Redemption, The (1994)
+      2. ✓ Pulp Fiction (1994)
+      3.   Matrix, The (1999)
+      4. ✓ Forrest Gump (1994)
+      5.   Silence of the Lambs, The (1991)
+      6.   Star Wars: Episode IV - A New Hope (1977)
+      7.   Fight Club (1999)
+      8.   Star Wars: Episode V - The Empire Strikes Back (1980)
+      9.   Schindler's List (1993)
+     10.   Raiders of the Lost Ark (Indiana Jones and the Raiders of the Lost Ark) (1981)
+  top-10 item_knn (2 hits):
+      1.   Last Samurai, The (2003)
+      2.   I, Robot (2004)
+      3.   Matrix, The (1999)
+      4.   Bourne Supremacy, The (2004)
+      5.   Mission: Impossible II (2000)
+      6. ✓ Catch Me If You Can (2002)
+      7.   Spider-Man 2 (2004)
+      8.   Mr. & Mrs. Smith (2005)
+      9. ✓ Green Mile, The (1999)
+     10.   Batman Begins (2005)

@@ -1,0 +1,130 @@
+== CONFIG ==
+dataset_name               ml-25m
+raw_dir                    /home/sudu/ott-recsys/data/raw
+processed_dir              /home/sudu/ott-recsys/data/processed
+sample_users               20000
+sample_seed                42
+min_sample_interactions    20
+mem_limit_gb               7.5
+tune_users                 3000
+positive_threshold         4.0
+session_gap_minutes        30
+burst_window_minutes       10
+burst_min_ratings          30
+train_frac                 0.7
+val_frac                   0.15
+min_user_interactions      10
+user_test_frac             0.2
+user_val_frac              0.1
+
+[stage] load, sample, audit, sessions, global split:    8.4s  (total    8.4s, peak RSS 0.56 GB)
+== AUDIT (ml-25m) ==
+ratings                      3101914
+users                        20000
+movies_rated                 33392
+movies_in_catalog            33392
+date_min                     1996-01-29 00:00:00+00:00
+date_max                     2019-11-21 08:36:52+00:00
+sparsity                     0.9953553036655486
+duplicates                   0
+missing_ratings              0
+missing_tmdb_ids             48
+missing_genres               1081
+movies_with_1_rating         9997
+movies_with_le_5_ratings     19271
+
+ratings per user
+ count    20000.0
+mean       155.1
+std        265.5
+min         20.0
+25%         36.0
+50%         72.0
+75%        165.0
+90%        352.0
+max       8913.0
+
+ratings per movie
+ count    33392.0
+mean        92.9
+std        403.8
+min          1.0
+25%          1.0
+50%          4.0
+75%         22.0
+90%        152.0
+max      10145.0
+
+rating distribution
+ rating
+0.5     49144
+1.0     94112
+1.5     51750
+2.0    198590
+2.5    158235
+3.0    602585
+3.5    399924
+4.0    824975
+4.5    277370
+5.0    445229
+
+positive share (rating>=4): 0.499
+
+== SESSIONS / BURSTS ==
+burst_ratings                      1806187
+burst_share                        0.582
+users_with_burst                   12762
+sessions                           203765
+avg_session_len                    15.223
+median_session_len                 2.000
+single_item_sessions               100171
+sessions_ge_20                     33784
+share_ratings_in_sessions_ge_20    0.850
+
+hour (UTC) share:
+ hour
+0     0.047
+1     0.044
+2     0.042
+3     0.041
+4     0.038
+5     0.032
+6     0.030
+7     0.030
+8     0.028
+9     0.026
+10    0.028
+11    0.029
+12    0.031
+13    0.035
+14    0.039
+15    0.043
+16    0.046
+17    0.050
+18    0.055
+19    0.060
+20    0.059
+21    0.061
+22    0.056
+23    0.049
+
+dow share (0=Mon):
+ dow
+0    0.155
+1    0.146
+2    0.139
+3    0.127
+4    0.140
+5    0.136
+6    0.157
+
+== SPLIT ==
+train rows=2171340 1996-01-29 -> 2015-02-03 pos=0.500
+val   rows=465287 2015-02-03 -> 2017-03-28 pos=0.494
+test  rows=465287 2017-03-28 -> 2019-11-21 pos=0.497
+cutoffs: {'t_train': Timestamp('2015-02-03 14:11:11'), 't_val': Timestamp('2017-03-28 07:53:01')}
+
+== COLD START ==
+val {'rows': 465287, 'users': 3308, 'users_not_in_train': 2778, 'items': 18774, 'items_not_in_train': 6864, 'rows_with_new_user': 398647, 'rows_with_new_item': 38833, 'rows_cold_either': 409723}
+test {'rows': 465287, 'users': 2986, 'users_not_in_train': 2610, 'items': 24452, 'items_not_in_train': 12566, 'rows_with_new_user': 419876, 'rows_with_new_item': 88426, 'rows_cold_either': 437387}
+[stage] save + report:    0.7s  (total    9.1s, peak RSS 0.66 GB)

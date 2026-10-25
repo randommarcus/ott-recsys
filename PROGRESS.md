@@ -31,5 +31,18 @@ Code: `data.py` (per_user_split, UserSplit lock), `eval.py` (harness), `baseline
 - **Sample users (validation likes shown):** 0 of 10 hits for all 5 sampled users and all 3 baselines. Popularity gives every user nearly the same list; item-kNN personalises (sci-fi fans get sci-fi, an old-westerns user gets westerns) but still misses.
 - Caveat: hyperparameters were tuned on validation, so validation numbers are slightly optimistic; kNN shrink=50 and hour-pop lam=5000 sit on grid edges.
 
+## 2026-10-25 — Module 2b: scale up to MovieLens 25M and re-baseline
+Code: `config.py` (sampling, memory limit), `data.load_raw` (user sampling), `eval.py` (chunked scoring, fast top-K, paired_diff), `baselines.knn_neighbors` (block-wise kNN), `memguard.py` + `scripts/guarded_run.py` (memory guard), `.claude/settings.json` (deny rule for reading .env; did not exist before). Reports: `reports/module1_audit_ml-25m_u20000_s42.txt`, `reports/module2_validation_<run>.{txt,json}`.
+- **Subset:** seeded (seed 42) random sample of 20,000 of the 162k users (all have >= 20 ratings), keeping every rating of each. 3,101,914 ratings, 33,392 movies, sparsity 99.5%. Sampled ids + seed saved to `data/processed/ml-25m_u20000_s42/sampled_users.json` (gitignored; recreated by the seed). Config printed at the top of each report.
+- **Memory guard:** `guarded_run.py` kills a run above 7.5 GB (or when system free memory < 0.8 GB). It never tripped: peaks were 0.66 GB (audit), 1.16 GB (split), 3.48 GB (baselines).
+- **Timing (this laptop):** download+unzip 71 s; sample+audit+global split 10 s; per-user split 2 s; tune+evaluate all baselines 6.7 min (wall 404 s).
+- **Split (25M subset):** train 2,187,571 / val 301,690 / test sealed. 18,530 of 20,000 users have >= 1 validation like.
+- **Grids:** hour-pop lam widened to 5M (best interior: window 3, lam 50,000). kNN widened twice: best k=500 (interior of 100-1500), shrink=0 (natural floor). Small dataset unchanged by widening (k=100, shrink=50; same as the earlier wider grid, where it was interior).
+- **Results (validation, NDCG@10 / Recall@50):** 25M: random 0.0004/0.001, global pop 0.0555/0.180, hour pop 0.0559/0.182, kNN 0.0980/0.306. Small: 0.0007/0.005, 0.0605/0.190, 0.0628/0.188, 0.1014/0.298. kNN beats popularity by ~1.8x NDCG on both; paired CI excludes 0.
+- **Hour of day:** small data: nothing (all paired CIs include 0). 25M: a real but tiny effect: Recall@10 +0.0016 over both global pop and the shuffled-hours control (CI excludes 0; ~2.5% relative); NDCG@10 +0.0004 (borderline, CI touches 0 vs global pop). Not practically useful; hour is UTC. Shuffled control equals global pop, as it should.
+- **Cold items:** the share fell sharply with scale: 0.77% of validation rows and 0.36% of validation likes (509 of 141,159) are on items unseen in train, versus 7.6% / 6.3% on the small data. All baselines score 0 on them. A per-user split does not create "new releases" (every item exists across the whole window), so the bandit/new-release story needs its own evaluation (e.g. a time-ordered simulation).
+- Test portion still sealed; the lock tests plus a real-script run with test.parquet reads made fatal passed again.
+- **Housekeeping flag:** a TMDB API key was found in `.env.example` (tracked file) - it must live in `.env` only. Not committed.
+
 ## Next
-- Wait for approval before unlocking test. Next module candidate: SBERT item embeddings / two-tower candidate generation, to be compared against these baselines.
+- Wait for approval before unlocking test. Next module candidate: SBERT item embeddings + two-tower candidate generation (must beat item-kNN NDCG@10 ~0.098 and give non-zero cold-item recall).

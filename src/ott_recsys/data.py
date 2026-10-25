@@ -1,20 +1,48 @@
 """The single data module: loading, audit, interactions, sessions, time
 features and temporal split. Nothing else in the project reads raw files."""
+import json
+
 import numpy as np
 import pandas as pd
 
 from .config import Config
 
 
+def _sample_user_ids(cfg: Config) -> np.ndarray:
+    """Seeded random sample of users with >= min_sample_interactions ratings."""
+    users = pd.read_csv(cfg.dataset_dir / "ratings.csv", usecols=["userId"], dtype="int32")["userId"]
+    counts = users.value_counts()
+    eligible = np.sort(counts[counts >= cfg.min_sample_interactions].index.to_numpy())
+    rng = np.random.default_rng(cfg.sample_seed)
+    n = min(cfg.sample_users, len(eligible))
+    return np.sort(rng.choice(eligible, size=n, replace=False))
+
+
 def load_raw(cfg: Config) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Load ratings/movies/links. With cfg.sample_users set, keep a random
+    sample of users and ALL of their ratings (never drop individual rows), and
+    shrink the catalog to movies those users rated. The sampled ids and seed are
+    saved to <out_dir>/sampled_users.json so the subset is reproducible."""
     d = cfg.dataset_dir
-    ratings = pd.read_csv(d / "ratings.csv")
+    dtypes = {"userId": "int32", "movieId": "int32", "rating": "float32", "timestamp": "int64"}
     movies = pd.read_csv(d / "movies.csv")
     links = pd.read_csv(d / "links.csv", dtype={"imdbId": str})
-    if cfg.max_users:
-        top = ratings["userId"].value_counts().head(cfg.max_users).index
-        ratings = ratings[ratings["userId"].isin(top)]
-    return ratings, movies, links
+    if not cfg.sample_users:
+        return pd.read_csv(d / "ratings.csv", dtype=dtypes), movies, links
+
+    chosen = _sample_user_ids(cfg)
+    parts = [c[c["userId"].isin(chosen)]
+             for c in pd.read_csv(d / "ratings.csv", dtype=dtypes, chunksize=2_000_000)]
+    ratings = pd.concat(parts, ignore_index=True)
+    assert set(ratings["userId"].unique()) == set(chosen.tolist()), "a sampled user has no ratings"
+    rated = ratings["movieId"].unique()
+    movies, links = movies[movies["movieId"].isin(rated)], links[links["movieId"].isin(rated)]
+
+    cfg.out_dir.mkdir(parents=True, exist_ok=True)
+    (cfg.out_dir / "sampled_users.json").write_text(json.dumps({
+        "dataset": cfg.dataset_name, "seed": cfg.sample_seed, "n_users": int(len(chosen)),
+        "min_interactions": cfg.min_sample_interactions, "user_ids": chosen.tolist()}))
+    return ratings, movies.reset_index(drop=True), links.reset_index(drop=True)
 
 
 def audit(ratings: pd.DataFrame, movies: pd.DataFrame, links: pd.DataFrame) -> dict:
