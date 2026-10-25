@@ -31,6 +31,11 @@ class Config:
     train_frac: float = 0.70
     val_frac: float = 0.15  # test gets the remainder
 
+    # Per-user temporal split (the main evaluation split)
+    min_user_interactions: int = 10
+    user_test_frac: float = 0.20  # last 20% of each user's interactions
+    user_val_frac: float = 0.10   # the 10% before that
+
     @property
     def dataset_dir(self) -> Path:
         return self.raw_dir / self.dataset_name

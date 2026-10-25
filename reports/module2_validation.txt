@@ -1,0 +1,214 @@
+== VALIDATION RESULTS (ml-latest-small; fit on train, test locked) ==
+best params: {'hour_pop': {'window': 1, 'lam': 5000.0}, 'item_knn': {'k': 100, 'shrink': 50.0}}
+validation vs train (cold report): {'rows': 9818, 'items': 4111, 'items_not_in_fit': 698, 'rows_on_new_items': 747, 'share_rows_on_new_items': 0.07608474231004278, 'likes': 4464, 'likes_on_new_items': 279}
+
+--- ALL validation likes (mean [95% CI over users]) ---
+                              recall@10             recall@50            recall@200               ndcg@10 users coverage@10
+random             0.0001 [0.000-0.000]  0.0039 [0.001-0.007]  0.0179 [0.011-0.027]  0.0003 [0.000-0.001]   558      0.4378
+global_pop         0.0686 [0.053-0.084]  0.1896 [0.166-0.213]  0.4076 [0.379-0.436]  0.0605 [0.049-0.073]   558      0.0081
+hour_pop           0.0704 [0.054-0.087]  0.1882 [0.165-0.212]  0.4030 [0.374-0.431]  0.0628 [0.051-0.075]   558      0.0094
+item_knn           0.1154 [0.097-0.136]  0.2978 [0.270-0.326]  0.5315 [0.500-0.561]  0.1016 [0.088-0.116]   558      0.0389
+hour_pop_shuffled  0.0675 [0.053-0.081]  0.1876 [0.165-0.210]  0.3983 [0.369-0.428]  0.0593 [0.048-0.071]   558      0.0089
+
+--- WARM likes (item seen in train) (mean [95% CI over users]) ---
+                              recall@10             recall@50            recall@200               ndcg@10 users
+random             0.0002 [0.000-0.000]  0.0040 [0.001-0.007]  0.0180 [0.011-0.026]  0.0003 [0.000-0.001]   552
+global_pop         0.0696 [0.055-0.085]  0.1935 [0.171-0.215]  0.4175 [0.388-0.447]  0.0613 [0.049-0.074]   552
+hour_pop           0.0715 [0.057-0.087]  0.1920 [0.169-0.213]  0.4128 [0.383-0.442]  0.0636 [0.051-0.076]   552
+item_knn           0.1173 [0.097-0.139]  0.3035 [0.277-0.332]  0.5451 [0.516-0.576]  0.1029 [0.089-0.118]   552
+hour_pop_shuffled  0.0685 [0.055-0.083]  0.1912 [0.170-0.212]  0.4077 [0.380-0.435]  0.0601 [0.048-0.072]   552
+
+--- COLD likes (item never seen in train) (mean [95% CI over users]) ---
+                              recall@10             recall@50            recall@200               ndcg@10 users
+random             0.0000 [0.000-0.000]  0.0013 [0.000-0.004]  0.0070 [0.001-0.014]  0.0000 [0.000-0.000]    79
+global_pop         0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]    79
+hour_pop           0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]    79
+item_knn           0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]    79
+hour_pop_shuffled  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]    79
+
+(held-out likes shown are from VALIDATION; the test portion is locked)
+
+=== user 355: 19 train ratings (12 likes), 2 validation likes ===
+  recent train likes: Stargate (1994); Total Recall (1990); Galaxy Quest (1999); Men in Black (a.k.a. MIB) (1997); Rocketeer, The (1991); Star Wars: Episode I - The Phantom Menace (1999); Forever Young (1992); Funny Face (1957)
+  validation likes:   Some Like It Hot (1959); Sabrina (1954)
+  top-10 global_pop (0 hits):
+      1.   Shawshank Redemption, The (1994)
+      2.   Forrest Gump (1994)
+      3.   Pulp Fiction (1994)
+      4.   Matrix, The (1999)
+      5.   Silence of the Lambs, The (1991)
+      6.   Star Wars: Episode IV - A New Hope (1977)
+      7.   Fight Club (1999)
+      8.   Braveheart (1995)
+      9.   Star Wars: Episode V - The Empire Strikes Back (1980)
+     10.   Usual Suspects, The (1995)
+  top-10 hour_pop (0 hits):
+      1.   Matrix, The (1999)
+      2.   Forrest Gump (1994)
+      3.   Pulp Fiction (1994)
+      4.   Shawshank Redemption, The (1994)
+      5.   Star Wars: Episode IV - A New Hope (1977)
+      6.   Silence of the Lambs, The (1991)
+      7.   Braveheart (1995)
+      8.   Star Wars: Episode V - The Empire Strikes Back (1980)
+      9.   Lord of the Rings: The Return of the King, The (2003)
+     10.   Fight Club (1999)
+  top-10 item_knn (0 hits):
+      1.   Star Wars: Episode IV - A New Hope (1977)
+      2.   Terminator 2: Judgment Day (1991)
+      3.   Star Wars: Episode V - The Empire Strikes Back (1980)
+      4.   X-Men (2000)
+      5.   Groundhog Day (1993)
+      6.   Aliens (1986)
+      7.   Being John Malkovich (1999)
+      8.   Starship Troopers (1997)
+      9.   Matrix, The (1999)
+     10.   Indiana Jones and the Last Crusade (1989)
+
+=== user 238: 32 train ratings (20 likes), 3 validation likes ===
+  recent train likes: Rio Bravo (1959); Doctor Zhivago (1965); Enforcer, The (1976); Sudden Impact (1983); Magnum Force (1973); Desperado (1995); Basic Instinct (1992); Play Misty for Me (1971)
+  validation likes:   Dead Pool, The (1988); Gauntlet, The (1977)  [cold]; Dirty Rotten Scoundrels (1988)
+  top-10 global_pop (0 hits):
+      1.   Shawshank Redemption, The (1994)
+      2.   Forrest Gump (1994)
+      3.   Pulp Fiction (1994)
+      4.   Matrix, The (1999)
+      5.   Star Wars: Episode IV - A New Hope (1977)
+      6.   Fight Club (1999)
+      7.   Braveheart (1995)
+      8.   Star Wars: Episode V - The Empire Strikes Back (1980)
+      9.   Usual Suspects, The (1995)
+     10.   Star Wars: Episode VI - Return of the Jedi (1983)
+  top-10 hour_pop (0 hits):
+      1.   Forrest Gump (1994)
+      2.   Shawshank Redemption, The (1994)
+      3.   Pulp Fiction (1994)
+      4.   Matrix, The (1999)
+      5.   Usual Suspects, The (1995)
+      6.   Star Wars: Episode IV - A New Hope (1977)
+      7.   Fight Club (1999)
+      8.   Schindler's List (1993)
+      9.   Braveheart (1995)
+     10.   Raiders of the Lost Ark (Indiana Jones and the Raiders of the Lost Ark) (1981)
+  top-10 item_knn (0 hits):
+      1.   Butch Cassidy and the Sundance Kid (1969)
+      2.   Midnight Run (1988)
+      3.   Dirty Dozen, The (1967)
+      4.   Cool Hand Luke (1967)
+      5.   Bridge on the River Kwai, The (1957)
+      6.   Kill Bill: Vol. 1 (2003)
+      7.   Goodfellas (1990)
+      8.   Great Escape, The (1963)
+      9.   Kill Bill: Vol. 2 (2004)
+     10.   Lawrence of Arabia (1962)
+
+=== user 29: 57 train ratings (44 likes), 8 validation likes ===
+  recent train likes: Pianist, The (2002); Hearts of Darkness: A Filmmakers Apocalypse (1991); Quiet Earth, The (1985); I Am Legend (2007); Super 8 (2011); True Grit (2010); Dr. Strangelove or: How I Learned to Stop Worrying and Love the Bomb (1964); Frost/Nixon (2008)
+  validation likes:   L.A. Confidential (1997); Django Unchained (2012); Zero Dark Thirty (2012); Town, The (2010); Best Years of Our Lives, The (1946); American Graffiti (1973); My Fair Lady (1964); Battlestar Galactica (2003)
+  top-10 global_pop (0 hits):
+      1.   Forrest Gump (1994)
+      2.   Pulp Fiction (1994)
+      3.   Matrix, The (1999)
+      4.   Silence of the Lambs, The (1991)
+      5.   Star Wars: Episode IV - A New Hope (1977)
+      6.   Fight Club (1999)
+      7.   Braveheart (1995)
+      8.   Star Wars: Episode V - The Empire Strikes Back (1980)
+      9.   Star Wars: Episode VI - Return of the Jedi (1983)
+     10.   Schindler's List (1993)
+  top-10 hour_pop (0 hits):
+      1.   Pulp Fiction (1994)
+      2.   Matrix, The (1999)
+      3.   Forrest Gump (1994)
+      4.   Silence of the Lambs, The (1991)
+      5.   Fight Club (1999)
+      6.   Star Wars: Episode IV - A New Hope (1977)
+      7.   Star Wars: Episode VI - Return of the Jedi (1983)
+      8.   Schindler's List (1993)
+      9.   Braveheart (1995)
+     10.   Star Wars: Episode V - The Empire Strikes Back (1980)
+  top-10 item_knn (0 hits):
+      1.   Fargo (1996)
+      2.   Star Wars: Episode V - The Empire Strikes Back (1980)
+      3.   Star Wars: Episode IV - A New Hope (1977)
+      4.   Blade Runner (1982)
+      5.   Pulp Fiction (1994)
+      6.   Godfather: Part II, The (1974)
+      7.   Reservoir Dogs (1992)
+      8.   Fight Club (1999)
+      9.   Silence of the Lambs, The (1991)
+     10.   Matrix, The (1999)
+
+=== user 7: 107 train ratings (61 likes), 2 validation likes ===
+  recent train likes: School of Rock (2003); Matrix Reloaded, The (2003); A.I. Artificial Intelligence (2001); What Women Want (2000); Day of the Jackal, The (1973); Seven Samurai (Shichinin no samurai) (1954); Spirited Away (Sen to Chihiro no kamikakushi) (2001); Man on Fire (2004)
+  validation likes:   Sideways (2004); Notting Hill (1999)
+  top-10 global_pop (0 hits):
+      1.   Shawshank Redemption, The (1994)
+      2.   Pulp Fiction (1994)
+      3.   Matrix, The (1999)
+      4.   Fight Club (1999)
+      5.   Braveheart (1995)
+      6.   Godfather, The (1972)
+      7.   Schindler's List (1993)
+      8.   Raiders of the Lost Ark (Indiana Jones and the Raiders of the Lost Ark) (1981)
+      9.   Fugitive, The (1993)
+     10.   Saving Private Ryan (1998)
+  top-10 hour_pop (0 hits):
+      1.   Pulp Fiction (1994)
+      2.   Shawshank Redemption, The (1994)
+      3.   Matrix, The (1999)
+      4.   Godfather, The (1972)
+      5.   Fight Club (1999)
+      6.   Schindler's List (1993)
+      7.   Saving Private Ryan (1998)
+      8.   Braveheart (1995)
+      9.   Raiders of the Lost Ark (Indiana Jones and the Raiders of the Lost Ark) (1981)
+     10.   Memento (2000)
+  top-10 item_knn (0 hits):
+      1.   Matrix, The (1999)
+      2.   Raiders of the Lost Ark (Indiana Jones and the Raiders of the Lost Ark) (1981)
+      3.   Pulp Fiction (1994)
+      4.   Shawshank Redemption, The (1994)
+      5.   Saving Private Ryan (1998)
+      6.   Godfather, The (1972)
+      7.   Fight Club (1999)
+      8.   Indiana Jones and the Last Crusade (1989)
+      9.   Seven (a.k.a. Se7en) (1995)
+     10.   Finding Nemo (2003)
+
+=== user 580: 306 train ratings (164 likes), 16 validation likes ===
+  recent train likes: Alien (1979); K-PAX (2001); Signs (2002); Stargate (1994); War of the Worlds (2005); X-Files: Fight the Future, The (1998); Alien³ (a.k.a. Alien 3) (1992); Close Encounters of the Third Kind (1977)
+  validation likes:   Gattaca (1997); Brazil (1985); Hitchhiker's Guide to the Galaxy, The (2005); Dune (1984); I, Robot (2004); Island, The (2005); Star Trek: Generations (1994); Aeon Flux (2005); Waterworld (1995); Terminator 3: Rise of the Machines (2003)
+  top-10 global_pop (0 hits):
+      1.   Star Wars: Episode IV - A New Hope (1977)
+      2.   Apollo 13 (1995)
+      3.   Back to the Future (1985)
+      4.   Shrek (2001)
+      5.   Princess Bride, The (1987)
+      6.   Dark Knight, The (2008)
+      7.   Dances with Wolves (1990)
+      8.   Inception (2010)
+      9.   Groundhog Day (1993)
+     10.   Monsters, Inc. (2001)
+  top-10 hour_pop (0 hits):
+      1.   Star Wars: Episode IV - A New Hope (1977)
+      2.   Shrek (2001)
+      3.   Princess Bride, The (1987)
+      4.   Back to the Future (1985)
+      5.   Dark Knight, The (2008)
+      6.   Apollo 13 (1995)
+      7.   Dr. Strangelove or: How I Learned to Stop Worrying and Love the Bomb (1964)
+      8.   Monsters, Inc. (2001)
+      9.   Inception (2010)
+     10.   Groundhog Day (1993)
+  top-10 item_knn (0 hits):
+      1.   Star Wars: Episode IV - A New Hope (1977)
+      2.   Back to the Future (1985)
+      3.   Shrek (2001)
+      4.   Monsters, Inc. (2001)
+      5.   Princess Bride, The (1987)
+      6.   Spider-Man (2002)
+      7.   Shaun of the Dead (2004)
+      8.   Being John Malkovich (1999)
+      9.   Groundhog Day (1993)
+     10.   Office Space (1999)

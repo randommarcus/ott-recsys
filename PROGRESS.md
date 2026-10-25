@@ -20,5 +20,16 @@ Code: `src/ott_recsys/config.py` (all dataset settings, env-overridable), `src/o
 - **Open decision:** a global cutoff cannot evaluate personalisation on this dataset. Proposed: also build a per-user temporal split (each user's last ~15% of ratings in time for test), keeping the global cutoff as a cold-start report.
 - Fixed: pyarrow added to requirements.
 
+## 2026-10-25 — Module 2: per-user split, evaluation harness, baselines
+Code: `data.py` (per_user_split, UserSplit lock), `eval.py` (harness), `baselines.py`, `experiments.py`, `scripts/build_user_split.py`, `scripts/run_module2.py`. Report: `reports/module2_validation.txt`.
+- **Split:** per user, sorted by (timestamp, movieId); last 20% test, 10% before = val, rest train (floor). 610 users kept (min 10 interactions). Rows: train 71,078 / val 9,818 / test 19,940. The global-cutoff split is kept separately for the cold-start report.
+- **TEST IS LOCKED.** The user said not to touch test until approved. `UserSplit.test` raises `TestLocked` until `unlock_test()`. Tests: runtime (pipeline runs with a test loader that fails if called), static (AST scan: tuning code may not reference `.test`/`unlock_test`), and a one-off run of the real script with `test.parquet` reads made fatal. Test cold-start numbers are deferred until unlock.
+- **Protocol:** truth = items rated >= 4 in the eval portion; rank every catalog movie the user has not seen in fit data; Recall@10/50/200, NDCG@10, Coverage@10; warm/cold views reported separately; 95% bootstrap CI over users. Validation mode = fit on train. (Test mode, later = fit on train+val.)
+- **Validation results (558 users with >= 1 val like):** NDCG@10 random 0.0003 / global pop 0.0605 / hour pop 0.0628 / item-kNN 0.1016. Recall@50: 0.004 / 0.190 / 0.188 / 0.298.
+- **Hour-of-day finding:** hour-pop beats global pop by a margin well inside the CIs, and the shuffled-hours control (0.0593) is also inside them: the UTC hour carries no usable signal on this data. Best smoothing was the grid edge (lam=5000), i.e. the model prefers to collapse to global popularity.
+- **Cold items:** 7.6% of val rows and 279 of 4,464 val likes (6.3%) are on items never seen in train. All baselines score 0 on them by construction.
+- **Sample users (validation likes shown):** 0 of 10 hits for all 5 sampled users and all 3 baselines. Popularity gives every user nearly the same list; item-kNN personalises (sci-fi fans get sci-fi, an old-westerns user gets westerns) but still misses.
+- Caveat: hyperparameters were tuned on validation, so validation numbers are slightly optimistic; kNN shrink=50 and hour-pop lam=5000 sit on grid edges.
+
 ## Next
-- Decide the evaluation split (see open decision above), then Module 2: baselines (popularity, etc.).
+- Wait for approval before unlocking test. Next module candidate: SBERT item embeddings / two-tower candidate generation, to be compared against these baselines.

@@ -148,3 +148,74 @@ def build_all(cfg: Config):
     cold = cold_start_report(train, val, test)
     return dict(movies=movies, links=links, df=df, train=train, val=val, test=test,
                 audit=stats, sessions=sessions, cuts=cuts, cold=cold)
+
+
+# ---------------------------------------------------------------------------
+# Per-user temporal split (main evaluation split) and the test-set lock
+# ---------------------------------------------------------------------------
+class TestLocked(RuntimeError):
+    """Raised when code touches the test portion before the user approved it."""
+
+    __test__ = False  # not a pytest class
+
+
+class UserSplit:
+    """train/val are plain DataFrames. The test portion is loaded lazily and
+    only after unlock_test(); tuning code must never call unlock_test()."""
+
+    def __init__(self, train: pd.DataFrame, val: pd.DataFrame, test_loader):
+        self.train, self.val = train, val
+        self._test_loader, self._test, self._unlocked = test_loader, None, False
+
+    def unlock_test(self) -> None:
+        self._unlocked = True
+
+    @property
+    def test(self) -> pd.DataFrame:
+        if not self._unlocked:
+            raise TestLocked("Test portion is locked until the user approves its use.")
+        if self._test is None:
+            self._test = self._test_loader()
+        return self._test
+
+
+def per_user_split(df: pd.DataFrame, cfg: Config):
+    """For each user: sort by (timestamp, item_id); last 20% -> test, the 10%
+    before -> val, rest -> train. Users below the minimum are dropped.
+    Only timestamps are inspected here (ordering asserts), never labels."""
+    df = df.sort_values(["user_id", "timestamp", "item_id"], kind="mergesort").reset_index(drop=True)
+    n = df.groupby("user_id")["item_id"].transform("size")
+    df, n = df[n >= cfg.min_user_interactions].copy(), n[n >= cfg.min_user_interactions]
+    pos = df.groupby("user_id").cumcount()
+    n_test = np.floor(n * cfg.user_test_frac + 1e-9).astype(int)
+    n_val = np.floor(n * cfg.user_val_frac + 1e-9).astype(int)
+    part = np.where(pos >= n - n_test, "test", np.where(pos >= n - n_test - n_val, "val", "train"))
+    train, val, test = (df[part == p].reset_index(drop=True) for p in ["train", "val", "test"])
+
+    g = lambda d, f: d.groupby("user_id")["timestamp"].agg(f)
+    tr_max, va_min, va_max, te_min = g(train, "max"), g(val, "min"), g(val, "max"), g(test, "min")
+    users = df["user_id"].unique()
+    assert all(len(x) == len(users) for x in (tr_max, va_min, te_min)), "a user lacks train/val/test rows"
+    assert (tr_max <= va_min).all(), "val earlier than train for some user"
+    assert (va_max <= te_min).all(), "test earlier than val for some user"
+    assert len(train) + len(val) + len(test) == len(df)
+    return train, val, test
+
+
+def build_user_split(cfg: Config, df: pd.DataFrame) -> dict:
+    train, val, test = per_user_split(df, cfg)
+    d = cfg.out_dir / "user_split"
+    d.mkdir(parents=True, exist_ok=True)
+    for name, part in [("train", train), ("val", val), ("test", test)]:
+        part.to_parquet(d / f"{name}.parquet", index=False)
+    return {"train": len(train), "val": len(val), "test": len(test), "users": train["user_id"].nunique()}
+
+
+def load_user_split(cfg: Config) -> UserSplit:
+    d = cfg.out_dir / "user_split"
+    return UserSplit(pd.read_parquet(d / "train.parquet"), pd.read_parquet(d / "val.parquet"),
+                     lambda: pd.read_parquet(d / "test.parquet"))
+
+
+def load_movies(cfg: Config) -> pd.DataFrame:
+    return pd.read_parquet(cfg.out_dir / "movies.parquet")
