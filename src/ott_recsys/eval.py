@@ -49,7 +49,7 @@ def rank_top(scores: np.ndarray, seen: list[np.ndarray], k_max: int) -> np.ndarr
 
 def evaluate(model, fit_df: pd.DataFrame, eval_df: pd.DataFrame, catalog: np.ndarray,
              query_hours: pd.Series | None = None, ks=KS, ndcg_k: int = 10,
-             cov_k: int = 10, chunk: int = 500) -> EvalResult:
+             cov_k: int = 10, chunk: int = 500, candidate_items: np.ndarray | None = None) -> EvalResult:
     cat_index = pd.Index(catalog)
     truth_df = eval_df[eval_df["label"] == 1]
     users = np.sort(truth_df["user_id"].unique())
@@ -59,6 +59,9 @@ def evaluate(model, fit_df: pd.DataFrame, eval_df: pd.DataFrame, catalog: np.nda
     warm_items = set(cat_index.get_indexer(fit_df["item_id"].unique()))
     seen_map = {u: cat_index.get_indexer(g["item_id"].to_numpy()) for u, g in fit_df.groupby("user_id")}
     seen = [seen_map.get(u, np.empty(0, dtype=np.int64)) for u in users]
+    if candidate_items is not None:  # rank only this pool: everything else is excluded like seen items
+        outside = np.setdiff1d(np.arange(len(catalog)), cat_index.get_indexer(candidate_items))
+        seen = [np.union1d(x, outside) for x in seen]
 
     hours = None if query_hours is None else query_hours.reindex(users).to_numpy()
     k_max = min(max(max(ks), ndcg_k, cov_k), len(catalog))

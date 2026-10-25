@@ -128,3 +128,52 @@ class ItemKNN:
         Xu = self.X[np.where(rows >= 0, rows, 0)]
         Xu = Xu.multiply((rows >= 0)[:, None].astype(np.float32)).tocsr()
         return (Xu @ self.ST).toarray() + self.tiebreak
+
+
+class ContentRetrieval:
+    """Content-only retrieval. User profile = mean of the (L2-normalised) text
+    embeddings of the items they liked in the fitting data, re-normalised;
+    score = cosine similarity to every catalog item. emb rows must be aligned
+    with the catalog passed to fit(). Users with no likes get a popularity
+    tie-break so they still get a sensible list."""
+    name = "content"
+
+    def __init__(self, emb: np.ndarray):
+        self.emb = np.asarray(emb, dtype=np.float32)
+
+    def fit(self, fit_df, catalog):
+        assert len(self.emb) == len(catalog), "embeddings not aligned with catalog"
+        users = np.sort(fit_df["user_id"].unique())
+        self.u_index = {u: i for i, u in enumerate(users)}
+        likes = fit_df[fit_df["label"] == 1]
+        rows = likes["user_id"].map(self.u_index).to_numpy()
+        cols = pd.Index(catalog).get_indexer(likes["item_id"])
+        assert (cols >= 0).all(), "fit item missing from catalog"
+        X = csr_matrix((np.ones(len(rows), dtype=np.float32), (rows, cols)), shape=(len(users), len(catalog)))
+        P = np.asarray(X @ self.emb)
+        norm = np.linalg.norm(P, axis=1, keepdims=True)
+        self.profiles = np.divide(P, norm, out=np.zeros_like(P), where=norm > 0)
+        g = _like_counts(fit_df, catalog)
+        self.tiebreak = 1e-6 * g / max(g.max(), 1.0)
+
+    def score(self, user_ids, query_hours=None):
+        rows = np.array([self.u_index.get(u, -1) for u in user_ids])
+        P = np.where((rows >= 0)[:, None], self.profiles[np.where(rows >= 0, rows, 0)], 0.0)
+        return P @ self.emb.T + self.tiebreak
+
+
+class RandomTies:
+    """Wrap a model and add tiny seeded noise so exact score ties are broken
+    at random, not by item id (ids correlate with when a movie was added)."""
+
+    def __init__(self, model, seed: int = 0):
+        self.model, self.seed = model, seed
+        self.name = getattr(model, "name", "model")
+
+    def fit(self, fit_df, catalog):
+        self.model.fit(fit_df, catalog)
+
+    def score(self, user_ids, query_hours=None):
+        s = np.asarray(self.model.score(user_ids, query_hours), dtype=np.float64)
+        rng = np.random.default_rng([self.seed, int(user_ids[0]), len(user_ids)])
+        return s + 1e-9 * rng.random(s.shape)

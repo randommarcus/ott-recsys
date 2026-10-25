@@ -44,5 +44,21 @@ Code: `config.py` (sampling, memory limit), `data.load_raw` (user sampling), `ev
 - Test portion still sealed; the lock tests plus a real-script run with test.parquet reads made fatal passed again.
 - **Housekeeping flag:** a TMDB API key was found in `.env.example` (tracked file) - it must live in `.env` only. Not committed.
 
+## 2026-10-25 — Module 3: TMDB descriptions, SBERT embeddings, content retrieval, new-release evaluation
+Code: `tmdb.py` + `scripts/fetch_tmdb.py` (fetcher), `content.py` (texts, coverage, release dates, embeddings), `scripts/build_embeddings.py`, `baselines.ContentRetrieval` / `RandomTies`, `newrelease.py`, `scripts/run_module3.py`, `eval.evaluate(candidate_items=...)`. Reports: `reports/module3_embeddings_*.txt`, `reports/module3_content_*.txt`. Raw TMDB cache in `data/raw/tmdb/` (gitignored: TMDB terms do not allow redistribution). This product uses the TMDB API but is not endorsed or certified by TMDB.
+- **Fetch:** standalone detached script, log in `logs/fetch_tmdb.log`, 33,319 unique ids at ~11.5 req/s = 36 min. Result: 32,859 ok, 440 not found (404), 0 failed; only 6 transient connection errors (retried). Key never logged or cached (tests cover this).
+- **Coverage (33,392 movies):** 32,873 (98.4%) have an overview >= 40 chars; 456 empty + 15 very short + 48 with no tmdbId/404 -> 519 use fallback text; of those only 147 have MovieLens tags and 10 TMDB keywords, so 363 are title + genres only. 32,902 have a release date. Tags used only if dated <= the global train cutoff (2015-02-03).
+- **SBERT** all-MiniLM-L6-v2, CPU, batch 64: 549 s for 33,392 texts (61 texts/s; slower than the 270/s benchmark because real overviews are long). 384-d, plus a PCA-64 copy. Neighbours look right (Godfather -> Part II/III, Dark Knight -> Rises/Batman Begins).
+- **Content-only retrieval (per-user validation, 18,530 users), NDCG@10 / Recall@50:** raw-384 0.0019/0.010; centered-384 0.0103/0.036; PCA-64 0.0064/0.024; vs global pop 0.0555/0.180 and kNN 0.0980/0.306. As expected, content-only is far worse than collaborative baselines on the overall table.
+- **Finding - center the embeddings:** raw SBERT vectors share a large common component, so averaged user profiles point at "generic" items. Removing the mean (what PCA does implicitly) multiplies NDCG@10 by ~5 (paired CI excludes 0). Centered-384 also beats PCA-64 overall, so 64 dims costs a little accuracy. Use centered embeddings in any content tower.
+- **Cold view (236 users, wide CIs):** pop and kNN 0 (by construction); centered-384 Recall@200 0.040 [0.019-0.062] vs random 0.004.
+- **New-release evaluation (global cutoff 2015-02-03, validation window to 2017-03-28; fit only on ratings <= cutoff):** PRIMARY = TMDB release date from cutoff-6mo on (3,493 movies; 420 evaluable users). Split into COLD part (3,341 movies with no train ratings; 360 users, 3,326 likes) and WARM part (152 movies already rated in train). SECONDARY = first rated after cutoff (6,864 movies; 378 users). Ties broken at random.
+  - Cold part, competing only against other new items: Recall@50 centered-384 0.159 [0.135-0.184], PCA-64 0.145, pop 0.017, kNN 0.017, random 0.019 (pop = kNN = random, as constructed).
+  - Cold part vs the whole catalog: content ~0.016 Recall@50, pop/kNN 0: new items rarely beat established ones without a hybrid model.
+  - Warm part (pool of 152): popularity wins by far (Recall@10 0.60 vs content 0.24): the "primary all" pool table is dominated by these 152 items, so read the cold/warm split, not the combined row.
+  - Secondary: centered-384 Recall@50 0.068 vs random 0.009 in the new-only pool.
+- Test portion still sealed; lock tests + real-script run with every test.parquet read made fatal passed again. 41 tests pass.
+- Timing: embeddings 9.2 min, evaluation 4.6 min, peak memory 2.0 GB.
+
 ## Next
-- Wait for approval before unlocking test. Next module candidate: SBERT item embeddings + two-tower candidate generation (must beat item-kNN NDCG@10 ~0.098 and give non-zero cold-item recall).
+- Wait for approval before unlocking test. Next: two-tower candidate generation in TF/Keras (item tower seeded with centered SBERT, user tower from history), to be compared against item-kNN (NDCG@10 0.098) and content-only on warm, cold and new-release views.

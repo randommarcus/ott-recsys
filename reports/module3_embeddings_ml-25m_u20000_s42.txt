@@ -1,0 +1,53 @@
+== CONFIG ==
+dataset_name               ml-25m
+raw_dir                    /home/sudu/ott-recsys/data/raw
+processed_dir              /home/sudu/ott-recsys/data/processed
+sample_users               20000
+sample_seed                42
+min_sample_interactions    20
+mem_limit_gb               7.5
+tune_users                 3000
+positive_threshold         4.0
+session_gap_minutes        30
+burst_window_minutes       10
+burst_min_ratings          30
+train_frac                 0.7
+val_frac                   0.15
+min_user_interactions      10
+user_test_frac             0.2
+user_val_frac              0.1
+
+tags used: dated <= global train cutoff 2015-02-03 14:11:11 (movies with such tags: 15927)
+== TMDB COVERAGE ==
+movies                         33392
+no_tmdb_id                     48
+tmdb_id_not_cached_yet         0
+tmdb_404                       441
+overview_ok                    32873
+overview_empty                 456
+overview_very_short            15
+use_fallback                   519
+fallback_with_keywords         10
+fallback_with_tags             147
+fallback_title_genres_only     363
+with_release_date              32902
+overview threshold (chars)     40
+
+SBERT sentence-transformers/all-MiniLM-L6-v2: 33392 texts, CPU, batch 64: 549s (61 texts/s); dims 384 and PCA-64 (PCA is unsupervised, fit on item content only)
+
+== NEAREST NEIGHBOURS (cosine, 384-d | 64-d) ==
+Toy Story (1995)
+   384: Toy Story 2 (1999) (0.78); Toy Story 3 (2010) (0.77); Toy Story 4 (2019) (0.69); Toy, The (1982) (0.60); Toy Story of Terror (2013) (0.59)
+    64: Toy Story 3 (2010) (0.85); Toy Story 2 (1999) (0.84); Toy Story 4 (2019) (0.78); Toy, The (1982) (0.64); Goofy Movie, A (1995) (0.62)
+Matrix, The (1999)
+   384: Matrix Reloaded, The (2003) (0.71); Matrix Revolutions, The (2003) (0.71); The Matrix Revisited (2001) (0.69); Hackers (1995) (0.66); Mars (1998) (0.60)
+    64: Matrix Reloaded, The (2003) (0.75); Matrix Revolutions, The (2003) (0.73); The Matrix Revisited (2001) (0.62); Hackers (1995) (0.62); Mars (1998) (0.61)
+Titanic (1997)
+   384: Titanic (1953) (0.62); Titanic (1996) (0.60); Chambermaid on the Titanic, The (Femme de chambre du Titanic, La) (1998) (0.58); Titanic (1943) (0.57); Titanic 2 (2010) (0.56)
+    64: Titanic (1953) (0.68); Titanic (1943) (0.64); Chambermaid on the Titanic, The (Femme de chambre du Titanic, La) (1998) (0.64); Titanic (1996) (0.61); Raise the Titanic (1980) (0.59)
+Godfather, The (1972)
+   384: Godfather: Part II, The (1974) (0.91); Godfather: Part III, The (1990) (0.82); GodFather (1991) (0.68); The Godfather Legacy (2012) (0.67); Sicilian, The (1987) (0.65)
+    64: Godfather: Part II, The (1974) (0.93); Godfather: Part III, The (1990) (0.87); 3 Godfathers (1948) (0.69); GodFather (1991) (0.69); The Godfather Legacy (2012) (0.68)
+Dark Knight, The (2008)
+   384: Dark Knight Rises, The (2012) (0.82); Batman (1989) (0.75); Joker (2019) (0.74); The Dark Knight (2011) (0.69); Batman Begins (2005) (0.68)
+    64: Dark Knight Rises, The (2012) (0.83); Batman (1989) (0.76); Batman Begins (2005) (0.76); Batman v Superman: Dawn of Justice (2016) (0.73); Batman: Gotham by Gaslight (2018) (0.73)

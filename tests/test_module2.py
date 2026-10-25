@@ -163,8 +163,10 @@ def test_validation_pipeline_never_touches_test():
 def test_tuning_code_never_references_test_split():
     """Static guard: tuning/eval/baseline code and run script must not use
     .test or unlock_test."""
-    files = [SRC / "experiments.py", SRC / "eval.py", SRC / "baselines.py",
-             Path(__file__).resolve().parents[1] / "scripts" / "run_module2.py"]
+    scripts = Path(__file__).resolve().parents[1] / "scripts"
+    files = [SRC / "experiments.py", SRC / "eval.py", SRC / "baselines.py", SRC / "content.py",
+             SRC / "newrelease.py", SRC / "tmdb.py", scripts / "run_module2.py", scripts / "run_module3.py",
+             scripts / "build_embeddings.py", scripts / "fetch_tmdb.py"]
     for f in files:
         tree = ast.parse(f.read_text())
         for node in ast.walk(tree):
