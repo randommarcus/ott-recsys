@@ -1,0 +1,22 @@
+# Secrets
+.env
+*.pem
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Data and model artifacts (large, re-downloadable)
+data/raw/*
+data/processed/*
+models/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!models/.gitkeep
+
+# OS / editor
+.DS_Store
+.vscode/
