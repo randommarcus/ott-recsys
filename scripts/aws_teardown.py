@@ -82,7 +82,7 @@ def main(argv=None, session_factory=None) -> int:
         import boto3
         session_factory = lambda profile, region: boto3.Session(profile_name=profile, region_name=region)
     regions = REGIONS if args.region == "all" else (args.region,)
-    remaining_total = 0
+    remaining_total = unverified_total = 0
     print("DELETE MODE" if delete else "DRY RUN (nothing is changed; add --confirm DELETE-OTT to delete)")
     for region in regions:
         try:
@@ -103,13 +103,22 @@ def main(argv=None, session_factory=None) -> int:
             for kind, name, state in inv:
                 if state != "absent":
                     print(f"  {kind:<16s} {name:<34s} {state}")
-        left = sum(1 for _, _, s in inv if s != "absent")
-        remaining_total += left if delete else sum(1 for _, _, s in inv if s == "exists")
-        print(f"  {'remaining' if delete else 'existing'}: {left if delete else sum(1 for _, _, s in inv if s == 'exists')}")
+        n_exist = sum(1 for _, _, s in inv if s == "exists")
+        n_unver = sum(1 for _, _, s in inv if s not in ("exists", "absent"))  # AccessDenied, throttling, anything not a clean answer
+        remaining_total += n_exist
+        unverified_total += n_unver
+        label = "remaining" if delete else "existing"
+        if n_unver:
+            print(f"  unverified: {n_unver} (the check itself failed, so these are NOT known to be absent)" + (f"; {label}: {n_exist}" if n_exist else ""))
+        else:
+            print(f"  {label}: {n_exist}")
     if delete:
         print(f"remaining: {remaining_total}")
-        return 0 if remaining_total == 0 else 1
-    return 0
+    if unverified_total:
+        print(f"unverified: {unverified_total}")
+    if delete:
+        return 0 if remaining_total == 0 and unverified_total == 0 else 1
+    return 1 if unverified_total else 0  # a dry run that could not check something must not look clean
 
 
 if __name__ == "__main__":

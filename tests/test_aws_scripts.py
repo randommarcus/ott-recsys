@@ -155,6 +155,38 @@ def test_teardown_dry_run_changes_nothing(capsys):
     no_leaks(out)
 
 
+def test_teardown_clean_world_says_existing_zero(capsys):
+    assert run_teardown(World()) == 0
+    out = capsys.readouterr().out
+    assert out.count("existing: 0") == 2 and "unverified" not in out
+
+
+def test_teardown_counts_failed_checks_as_unverified_not_as_zero(capsys):
+    """If the checks themselves are denied (e.g. by a service control policy), the script must NOT report 'existing: 0'."""
+    probes = {("lambda", "get_function"), ("lambda", "get_function_url_config"), ("logs", "describe_log_streams"), ("dynamodb", "describe_table"), ("ssm", "get_parameter")}
+    w = World(deny={p: ("AccessDeniedException", "explicit deny in a service control policy") for p in probes})
+    assert run_teardown(w, "--region", "eu-central-1") == 1
+    out = capsys.readouterr().out
+    assert "unverified: 11" in out and "existing: 0" not in out
+    assert out.count("unknown(AccessDeniedException)") == 11
+    no_leaks(out)
+
+
+def test_teardown_partial_failure_is_still_unverified(capsys):
+    w = World(existing=populated(), deny={("dynamodb", "describe_table"): ("ThrottlingException", "slow down")})
+    assert run_teardown(w, "--region", "eu-central-1") == 1
+    out = capsys.readouterr().out
+    assert "unverified: 3" in out and "existing: 4" in out  # the 3 table checks failed; function, URL, log group and parameter exist
+    assert "existing: 0" not in out
+
+
+def test_teardown_delete_mode_with_unverifiable_checks_exits_nonzero(capsys):
+    w = World(existing=populated(), deny={("dynamodb", "describe_table"): ("AccessDeniedException", "nope")})
+    assert run_teardown(w, "--confirm", "DELETE-OTT", "--region", "eu-central-1") == 1
+    out = capsys.readouterr().out
+    assert "unverified: 3" in out
+
+
 def test_teardown_needs_the_exact_confirmation_word(capsys):
     w = World(existing=populated())
     assert run_teardown(w, "--confirm", "yes") == 2
