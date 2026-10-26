@@ -29,11 +29,12 @@ def test_permtest_all_allowed_cleans_up_and_prints_only_words(capsys, tmp_path, 
     no_leaks(out)
     body = [l for l in out.splitlines() if l.startswith("  ") and "cleanup:" not in l]
     assert body and all(("ALLOWED" in l or "DENIED (as designed)" in l) for l in body), out
-    assert "ec2 describe_instances (must be denied by design)  " in out.replace("   ", "  ") or "DENIED (as designed)" in out
+    assert [l for l in out.splitlines() if "ec2 describe_instances" in l and l.rstrip().endswith("DENIED (as designed)")]
     assert w.res == set(), "every throwaway resource must be removed"
     assert w.profile == "ott-dev"
     saved = json.loads((tmp_path / "logs" / "permtest_eu-central-1.json").read_text())
-    assert saved["cleanup"] == "5/5" or saved["cleanup"].split("/")[0] == saved["cleanup"].split("/")[1]
+    done, total = saved["cleanup"].split("/")
+    assert done == total and int(total) >= 5
     no_leaks(json.dumps(saved))
 
 
@@ -174,7 +175,7 @@ def test_teardown_reports_failures_and_exits_nonzero(capsys):
     w = World(existing=populated(), deny={("dynamodb", "delete_table"): ("AccessDeniedException", "nope")})
     assert run_teardown(w, "--confirm", "DELETE-OTT", "--region", "eu-central-1") == 1
     out = capsys.readouterr().out
-    assert "FAILED(AccessDeniedException)" in out and "remaining: 4" in out
+    assert "FAILED(AccessDeniedException)" in out and "remaining: 2" in out  # the two tables that could not be deleted
     assert len([1 for r, k, n in w.res if r == "ap-south-1"]) == 6, "the other region must not be touched"
 
 
