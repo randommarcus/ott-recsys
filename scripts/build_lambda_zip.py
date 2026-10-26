@@ -96,14 +96,14 @@ print(json.dumps({"init_ms": round(init_ms, 1), "max_rss_mb": round(resource.get
 '''
 
 
-def smoke(zip_path: Path, bundle_cfg: Config) -> dict:
+def smoke(zip_path: Path, data_run: Config) -> dict:
     from ott_recsys.serving import handler as H
     from ott_recsys.serving.bundle import Bundle
     from ott_recsys.serving.records import pack
     from ott_recsys.serving.search import NumpySearch
     from ott_recsys.serving.store import MemoryStore
     from ott_recsys.serving_offline import record_at
-    sv = bundle_cfg.out_dir / "serving"
+    sv = data_run.out_dir / "serving"
     a = dict(np.load(sv / "users.npz"))
     pick = [0, 5, 100, int(np.flatnonzero(~a["has_ttvec"])[0])]
     payload = [{"uid": int(a["user_id"][i]), "rec": {k: ({"b": base64.b64encode(v).decode()} if isinstance(v, bytes) else v) for k, v in pack(record_at(a, i)).items()}} for i in pick]
@@ -130,8 +130,8 @@ def smoke(zip_path: Path, bundle_cfg: Config) -> dict:
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    cfg = Config(dataset_name="ml-25m", sample_users=20000, sample_seed=42)
-    ap.add_argument("--bundle", default=str(cfg.out_dir / "serving" / "bundle"))
+    data_run = Config(dataset_name="ml-25m", sample_users=20000, sample_seed=42)
+    ap.add_argument("--bundle", default=str(data_run.out_dir / "serving" / "bundle"))
     ap.add_argument("--out", default=str(ROOT / "build" / "lambda.zip"))
     ap.add_argument("--no-smoke", action="store_true")
     args = ap.parse_args()
@@ -139,5 +139,5 @@ if __name__ == "__main__":
     info = build(Path(args.bundle), Path(args.out), np.__version__)
     print(json.dumps(info, indent=1))
     if not args.no_smoke:
-        print(json.dumps(smoke(Path(args.out), cfg), indent=1))
+        print(json.dumps(smoke(Path(args.out), data_run), indent=1))
     print(f"done in {time.time() - t0:.0f}s")
