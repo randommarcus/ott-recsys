@@ -234,3 +234,71 @@ def test_milvus_export_roundtrip(tmp_path):
     schema = json.loads((tmp_path / "milvus_schema.json").read_text())
     assert schema["fields"][1]["dim"] == 64 and schema["index"]["metric_type"] == "IP"
     assert np.load(tmp_path / "user_tower.npz")["history_len"] == 20
+
+
+# ------------------------------------------------------------ Module 4b: candidate mixes and collections
+def test_mix_top_hand_checked_dedupe_fill_and_slots():
+    from ott_recsys.eval import mix_top
+    a = np.array([[1, 2, 3, 4, 5, 6, 7, 8]])
+    c = np.array([[9, 2, 10, 11, 12, 13, 14, 15]])
+    # n_a=4, n_c=3, total 6: a[:4]=1,2,3,4; content first 3 = 9,2,10 -> 2 already there -> new 9,10 (2 slots) -> total 6
+    lists, slots = mix_top(a, c, 4, 3, 6)
+    assert lists.tolist() == [[1, 2, 3, 4, 9, 10]] and slots.tolist() == [2]
+    # content fully overlapping: nothing new, so the list is filled from a: 1..6
+    lists, slots = mix_top(a, np.array([[1, 2, 3, 99, 98, 97, 96, 95]]), 4, 3, 6)
+    assert lists.tolist() == [[1, 2, 3, 4, 5, 6]] and slots.tolist() == [0]
+    # fill skips items already added from content: content picks 5 (new), a continues 5(dup skipped),6
+    lists, slots = mix_top(a, np.array([[5, 40, 41, 42, 43, 44, 45, 46]]), 3, 1, 5)
+    assert lists.tolist() == [[1, 2, 3, 5, 4]] and slots.tolist() == [1]
+
+
+def test_mix_with_zero_content_equals_base_and_lists_are_unique():
+    from ott_recsys.eval import mix_top
+    rng = np.random.default_rng(0)
+    a = np.array([rng.permutation(60) for _ in range(5)]); c = np.array([rng.permutation(60) for _ in range(5)])
+    lists, slots = mix_top(a, c, 20, 0, 20)
+    assert (lists == a[:, :20]).all() and (slots == 0).all()
+    lists, slots = mix_top(a, c, 15, 5, 20)
+    assert all(len(set(r)) == 20 for r in lists) and (slots <= 5).all()
+
+
+def test_export_collection_drops_uninformative_rows_and_supports_two_vector_fields(tmp_path):
+    import pyarrow.parquet as pq
+    from ott_recsys.export import export_collection, export_user_vectors
+    rng = np.random.default_rng(1)
+    unit = lambda n, d: (lambda m: m / np.linalg.norm(m, axis=1, keepdims=True))(rng.normal(size=(n, d)).astype(np.float32))
+    movies = pd.DataFrame({"movieId": CAT, "title": [f"M{i} ({2000 + i})" for i in CAT], "genres": "Drama"})
+    counts = np.arange(20); counts[[0, 5]] = 0
+    st = export_collection(tmp_path / "id", "c_id", CAT, {"vector": unit(20, 64)}, movies, counts, include=counts > 0)
+    t = pq.read_table(tmp_path / "id" / "items.parquet").to_pandas()
+    assert st["items"] == 18 and st["dropped"] == 2 and 1 not in t["item_id"].values and not t["is_cold"].any()
+    assert np.load(tmp_path / "id" / "vector.npy").shape == (18, 64)
+    st2 = export_collection(tmp_path / "ct", "c_ct", CAT, {"vec384": unit(20, 384), "vec64": unit(20, 64)}, movies, counts)
+    t2 = pq.read_table(tmp_path / "ct" / "items.parquet").to_pandas()
+    sch = json.loads((tmp_path / "ct" / "milvus_schema.json").read_text())
+    assert len(t2) == 20 and t2["is_cold"].sum() == 2 and {f["name"]: f.get("dim") for f in sch["fields"] if "dim" in f} == {"vec384": 384, "vec64": 64}
+    assert [i["field"] for i in sch["indexes"]] == ["vec384", "vec64"]
+    with pytest.raises(AssertionError):
+        export_collection(tmp_path / "bad", "x", CAT, {"vector": 3 * unit(20, 64)}, movies, counts)  # not unit length
+    export_user_vectors(tmp_path / "u.parquet", np.array([1, 2]), {"vec64": unit(2, 64)})
+    assert len(pq.read_table(tmp_path / "u.parquet")) == 2
+
+
+def test_mix_metrics_match_evaluate_on_a_base_list():
+    from ott_recsys.eval import mix_top
+    class M:
+        def fit(self, *a): pass
+        def score(self, users, h=None): return np.array([np.arange(20)[::-1] * 1.0 for _ in users])
+    fit = _df([(1, 1, 1, 1), (2, 2, 1, 1)]); ev = _df([(1, 5, 1, 9), (2, 7, 1, 9)])
+    res = evaluate(M(), fit, ev, CAT, ks=(5,))
+    lists, _ = mix_top(res.top, res.top, 10, 0, 10)
+    pd.testing.assert_frame_equal(evaluate_lists(lists, fit, ev, CAT, ks=(5,)), res.per_user)
+
+
+def test_append_top_keeps_base_list_and_adds_only_new_picks():
+    from ott_recsys.eval import append_top
+    a = np.array([[1, 2, 3, 4], [5, 6, 7, 8]]); c = np.array([[3, 9, 10, 11], [20, 21, 5, 22]])
+    lists, added = append_top(a, c, 3)
+    assert lists[0].tolist() == [1, 2, 3, 4, 9, 10, -1] and added[0] == 2   # 3 is already in the base list; width 4+3
+    assert lists[1].tolist() == [5, 6, 7, 8, 20, 21, -1] and added[1] == 2  # 5 already there; third pick would be 22 > n_c=3 window
+    assert (lists[:, :4] == a).all()                                          # the base list is untouched

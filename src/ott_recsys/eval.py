@@ -105,6 +105,42 @@ def union_top(a: np.ndarray, b: np.ndarray, n_each: int, k_total: int, fill: np.
     return out
 
 
+def mix_top(a: np.ndarray, c: np.ndarray, n_a: int, n_c: int, k_total: int = 200):
+    """Candidate mix: the first n_a of list `a`, plus the first n_c of list `c` that are not already
+    there, then fill up to k_total by continuing down `a` (skipping duplicates). Returns the lists and
+    the number of slots content (`c`) actually took per row."""
+    out = np.empty((len(a), k_total), dtype=a.dtype)
+    slots = np.zeros(len(a), dtype=int)
+    for r in range(len(a)):
+        row = list(a[r, :n_a])
+        seen = set(row)
+        new_c = [x for x in c[r, :n_c] if x not in seen]
+        row += new_c
+        seen.update(new_c)
+        for x in a[r, n_a:]:
+            if len(row) >= k_total:
+                break
+            if x not in seen:
+                seen.add(x); row.append(x)
+        out[r], slots[r] = row[:k_total], len(new_c)
+    return out, slots
+
+
+def append_top(a: np.ndarray, c: np.ndarray, n_c: int):
+    """Keep all of list `a` and APPEND the first n_c picks of `c` that are not already in `a`
+    (no slots are taken from `a`). Rows are padded with -1 to a common width; returns the lists and
+    the number of appended picks per row."""
+    out = np.full((len(a), a.shape[1] + n_c), -1, dtype=a.dtype)
+    out[:, :a.shape[1]] = a
+    added = np.zeros(len(a), dtype=int)
+    for r in range(len(a)):
+        seen = set(a[r].tolist())
+        new = [x for x in c[r, :n_c] if x not in seen]
+        out[r, a.shape[1]:a.shape[1] + len(new)] = new
+        added[r] = len(new)
+    return out, added
+
+
 def evaluate(model, fit_df: pd.DataFrame, eval_df: pd.DataFrame, catalog: np.ndarray,
              query_hours: pd.Series | None = None, ks=KS, ndcg_k: int = 10,
              cov_k: int = 10, chunk: int = 500, candidate_items: np.ndarray | None = None) -> EvalResult:

@@ -53,3 +53,19 @@ def format_table(tables: dict, ks=(10, 50, 200)) -> pd.DataFrame:
     rows = {n: {c.split("_", 1)[1]: f"{t.loc[c, 'mean']:.4f} [{t.loc[c, 'lo']:.3f}-{t.loc[c, 'hi']:.3f}]" for c in cols}
             for n, t in tables.items()}
     return pd.DataFrame(rows).T
+
+
+def new_release_tops(models: dict, train_g, val_g, catalog, sets: dict, definitions=("release_cold", "release_date", "first_rated"),
+                     ks=(10, 50, 200)) -> dict:
+    """Ranked top-200 lists per model for each (definition, mode), plus the evaluation frame, so
+    candidate mixes can be built from them. Same user filter as evaluate_new_release."""
+    profile_users = set(train_g.loc[train_g["label"] == 1, "user_id"])
+    out = {}
+    for d in definitions:
+        items = sets[d]
+        ev = val_g[val_g["item_id"].isin(set(items)) & val_g["user_id"].isin(profile_users)]
+        for mode in MODES:
+            cand = items if mode == "pool" else None
+            res = {n: evaluate(m, train_g, ev, catalog, ks=ks, candidate_items=cand) for n, m in models.items()}
+            out[(d, mode)] = {"ev": ev, "res": res, "n_items": int(len(items))}
+    return out
