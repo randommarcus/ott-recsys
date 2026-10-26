@@ -55,8 +55,10 @@ def build(bundle: Path, out: Path, version: str) -> dict:
         for name, data in entries.items():
             z.writestr(zipfile.ZipInfo(name, (2026, 1, 1, 0, 0, 0)), data, zipfile.ZIP_DEFLATED, 9)
     zipped, unzipped = out.stat().st_size, sum(len(d) for d in entries.values())
-    return {"zip": str(out.relative_to(ROOT)), "zipped_mb": round(zipped / 1e6, 1), "unzipped_mb": round(unzipped / 1e6, 1),
-            "fits_direct_upload_50mb": zipped / 1e6 < LIMIT_ZIPPED_MB, "fits_unzipped_250mb": unzipped / 1e6 < LIMIT_UNZIPPED_MB,
+    mib = 2 ** 20  # the Lambda documentation says its "MB" means 1,024 KB
+    return {"zip": str(out.relative_to(ROOT)), "zipped_bytes": zipped, "zipped_mib": round(zipped / mib, 2), "unzipped_mib": round(unzipped / mib, 1),
+            "limit_zipped_mib": LIMIT_ZIPPED_MB, "margin_mib": round(LIMIT_ZIPPED_MB - zipped / mib, 2),
+            "fits_direct_upload": zipped / mib < LIMIT_ZIPPED_MB, "fits_unzipped_limit": unzipped / mib < LIMIT_UNZIPPED_MB,
             "sha256": hashlib.sha256(out.read_bytes()).hexdigest(), "numpy": version,
             "bundle_parts_mb": {p.name: round(p.stat().st_size / 1e6, 1) for p in sorted(bundle.glob("*"))}}
 
