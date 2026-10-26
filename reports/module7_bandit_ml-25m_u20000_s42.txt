@@ -1,0 +1,167 @@
+== CONFIG ==
+dataset_name               ml-25m
+raw_dir                    /home/sudu/ott-recsys/data/raw
+processed_dir              /home/sudu/ott-recsys/data/processed
+sample_users               20000
+sample_seed                42
+min_sample_interactions    20
+mem_limit_gb               7.5
+tune_users                 3000
+positive_threshold         4.0
+session_gap_minutes        30
+burst_window_minutes       10
+burst_min_ratings          30
+train_frac                 0.7
+val_frac                   0.15
+min_user_interactions      10
+user_test_frac             0.2
+user_val_frac              0.1
+history_len                20
+embed_dim                  64
+temperature                0.07
+batch_size                 2048
+learning_rate              0.001
+id_dropout                 0.25
+max_epochs                 15
+patience                   2
+model_seed                 0
+
+*** SIMULATION, NOT AN A/B TEST. Reward = 'liked given rated' (ignores click probability). No real person saw anything. ***
+
+WHY NOT REPLAY: the replay estimator of Li et al. (2010) needs logged actions chosen at random (or with known probabilities) and keeps only events where the logged action equals the policy's pick. MovieLens ratings are users' own choices steered by the site, and with ~3341 arms nearly every logged event would be thrown away. So: a semi-synthetic simulation.
+arms: 3341 new releases (TMDB release since cutoff-6mo, no ratings before 2015-02-03); hidden like-rate of an arm = a draw from Beta(rate*5 + likes, (1-rate)*5 + n - likes) built from its real ratings in the validation window (global rate 0.457); a fresh draw per run and seed.
+requests: 31909 real session starts (30-min rule) from 3308 users between 2015-02-03 and 2017-03-28; a request shows k lane slots; an arm is on the shelf from its TMDB release date for 365 days (180 as sensitivity).
+content prior (centered SBERT -> like-rate, ridge, fitted on 6967 PRE-cutoff movies with >= 20 ratings): cross-validated correlation 0.520; empirical-Bayes weight 8.0 pseudo-ratings. Prior-only = always show the arms with the best prior.
+30 seeds per setting; per seed every strategy sees the SAME hidden like-rates and reward coins (paired). Intervals are 95% over seeds.
+
+*** SIMULATION, NOT AN A/B TEST. Reward = 'liked given rated' (ignores click probability). No real person saw anything. ***
+== MAIN RESULTS, 239 arms (>=20 ratings): k=2 lane slots, 365-day shelf; 239 arms, mean hidden like-rate 0.404 (sd of arm means 0.159); 31909 of 31909 requests had at least one arm on the shelf ==
+                         likes per 1,000 impressions regret as % of random's median request to find >=5 of true top-10     exposure Gini impressions on true top-10% arms   arms never shown
+random                           398.1 [396.5-399.7]     100.0 [100.0-100.0]              3400 (found in 100% of runs)  0.14 [0.14-0.14]                   9.3 [9.1-9.4]%     0.0 [0.0-0.0]%
+greedy                           631.3 [619.8-642.8]        32.4 [29.1-35.8]               9600 (found in 77% of runs)  0.98 [0.97-0.98]                45.7 [37.0-54.4]%  71.0 [67.3-74.8]%
+eps_greedy 0.1                   690.1 [683.4-696.8]        15.3 [14.5-16.1]              3400 (found in 100% of runs)  0.89 [0.88-0.89]                87.5 [86.6-88.4]%    0.0 [-0.0-0.0]%
+ucb1                             610.6 [604.7-616.5]        38.4 [37.6-39.3]              3400 (found in 100% of runs)  0.63 [0.62-0.64]                53.1 [51.9-54.3]%     0.0 [0.0-0.0]%
+ucb1 + content prior             617.7 [611.3-624.0]        36.3 [35.4-37.2]              3400 (found in 100% of runs)  0.65 [0.64-0.66]                55.4 [54.1-56.6]%     0.0 [0.0-0.0]%
+thompson (Beta)                  709.4 [702.9-715.8]          9.7 [9.3-10.1]              3400 (found in 100% of runs)  0.90 [0.89-0.90]                87.3 [86.7-87.9]%     0.0 [0.0-0.0]%
+prior only (no learning)         508.1 [501.7-514.4]        68.0 [66.3-69.7]               never (found in 7% of runs)  0.98 [0.98-0.98]                 10.9 [7.6-14.2]%  95.8 [95.8-95.8]%
+oracle (expected)                743.1 [736.9-749.3]                       0                                       NaN               NaN                              NaN                NaN
+
+paired differences vs plain UCB1 (same hidden rates and coins):
+  random - ucb1                                likes per 1,000 impressions -212.5 [-218.7--206.3]
+  greedy - ucb1                                likes per 1,000 impressions 20.7 [8.8-32.7]
+  eps_greedy 0.1 - ucb1                        likes per 1,000 impressions 79.5 [76.2-82.9]
+  ucb1 + content prior - ucb1                  likes per 1,000 impressions 7.1 [6.3-7.9]
+  thompson (Beta) - ucb1                       likes per 1,000 impressions 98.8 [96.4-101.2]
+  prior only (no learning) - ucb1              likes per 1,000 impressions -102.5 [-109.9--95.1]
+
+*** SIMULATION, NOT AN A/B TEST. Reward = 'liked given rated' (ignores click probability). No real person saw anything. ***
+== MAIN RESULTS, 629 arms (>=5 ratings): k=2 lane slots, 365-day shelf; 629 arms, mean hidden like-rate 0.385 (sd of arm means 0.146); 31909 of 31909 requests had at least one arm on the shelf ==
+                         likes per 1,000 impressions regret as % of random's median request to find >=5 of true top-10     exposure Gini impressions on true top-10% arms   arms never shown
+random                           381.9 [380.4-383.4]     100.0 [100.0-100.0]               300 (found in 100% of runs)  0.12 [0.12-0.12]                   9.6 [9.5-9.6]%     0.0 [0.0-0.0]%
+greedy                           646.9 [639.3-654.4]        43.5 [41.6-45.3]               never (found in 7% of runs)  0.99 [0.99-0.99]                47.0 [41.4-52.7]%  87.7 [85.9-89.5]%
+eps_greedy 0.1                   774.4 [766.2-782.6]        16.3 [15.5-17.2]               650 (found in 100% of runs)  0.90 [0.90-0.90]                89.7 [89.4-89.9]%     0.4 [0.3-0.5]%
+ucb1                             584.0 [576.7-591.3]        56.9 [55.9-58.0]               200 (found in 100% of runs)  0.53 [0.52-0.53]                44.3 [43.3-45.4]%     0.0 [0.0-0.0]%
+ucb1 + content prior             602.2 [594.1-610.2]        53.0 [52.0-54.1]               100 (found in 100% of runs)  0.56 [0.56-0.57]                48.1 [46.9-49.2]%     0.0 [0.0-0.0]%
+thompson (Beta)                  790.4 [779.0-801.7]        13.1 [12.3-13.9]               200 (found in 100% of runs)  0.89 [0.89-0.90]                86.7 [85.8-87.5]%     0.0 [0.0-0.0]%
+prior only (no learning)         437.0 [421.3-452.6]        88.2 [84.9-91.5]              never (found in 10% of runs)  0.99 [0.99-0.99]                 11.8 [8.3-15.3]%  98.6 [98.6-98.6]%
+oracle (expected)                851.4 [842.3-860.6]                       0                                       NaN               NaN                              NaN                NaN
+
+paired differences vs plain UCB1 (same hidden rates and coins):
+  random - ucb1                                likes per 1,000 impressions -202.1 [-209.2--195.0]
+  greedy - ucb1                                likes per 1,000 impressions 62.8 [53.6-72.0]
+  eps_greedy 0.1 - ucb1                        likes per 1,000 impressions 190.4 [184.5-196.3]
+  ucb1 + content prior - ucb1                  likes per 1,000 impressions 18.2 [16.8-19.6]
+  thompson (Beta) - ucb1                       likes per 1,000 impressions 206.4 [199.7-213.1]
+  prior only (no learning) - ucb1              likes per 1,000 impressions -147.0 [-164.7--129.4]
+
+*** SIMULATION, NOT AN A/B TEST. Reward = 'liked given rated' (ignores click probability). No real person saw anything. ***
+== MAIN RESULTS, 2031 arms (>=1 rating): k=2 lane slots, 365-day shelf; 2031 arms, mean hidden like-rate 0.400 (sd of arm means 0.110); 31909 of 31909 requests had at least one arm on the shelf ==
+                         likes per 1,000 impressions regret as % of random's median request to find >=5 of true top-10     exposure Gini impressions on true top-10% arms   arms never shown
+random                           398.1 [396.8-399.4]     100.0 [100.0-100.0]              30000 (found in 80% of runs)  0.16 [0.16-0.17]                   9.8 [9.7-9.8]%     0.1 [0.1-0.1]%
+greedy                           669.9 [654.2-685.7]        48.7 [45.6-51.8]               never (found in 0% of runs)  1.00 [1.00-1.00]                50.6 [44.5-56.7]%  96.6 [96.1-97.1]%
+eps_greedy 0.1                   840.6 [834.8-846.4]        16.7 [16.0-17.4]               5800 (found in 93% of runs)  0.91 [0.91-0.91]                88.8 [88.7-88.9]%     6.1 [6.0-6.3]%
+ucb1                             509.8 [507.9-511.6]        79.0 [78.7-79.2]              1750 (found in 100% of runs)  0.36 [0.36-0.36]                25.4 [25.1-25.6]%     0.0 [0.0-0.0]%
+ucb1 + content prior             532.5 [530.2-534.8]        74.7 [74.4-75.0]               900 (found in 100% of runs)  0.41 [0.41-0.41]                29.8 [29.5-30.1]%     0.0 [0.0-0.0]%
+thompson (Beta)                  805.9 [797.3-814.5]        23.3 [22.4-24.2]               700 (found in 100% of runs)  0.83 [0.82-0.83]                78.5 [77.7-79.3]%     0.0 [0.0-0.0]%
+prior only (no learning)         426.6 [401.8-451.4]        94.6 [89.9-99.4]               never (found in 0% of runs)  1.00 [1.00-1.00]                   6.5 [3.1-9.9]%  99.7 [99.7-99.7]%
+oracle (expected)                929.0 [924.1-933.9]                       0                                       NaN               NaN                              NaN                NaN
+
+paired differences vs plain UCB1 (same hidden rates and coins):
+  random - ucb1                                likes per 1,000 impressions -111.7 [-113.1--110.3]
+  greedy - ucb1                                likes per 1,000 impressions 160.2 [144.1-176.2]
+  eps_greedy 0.1 - ucb1                        likes per 1,000 impressions 330.8 [325.5-336.1]
+  ucb1 + content prior - ucb1                  likes per 1,000 impressions 22.7 [21.9-23.6]
+  thompson (Beta) - ucb1                       likes per 1,000 impressions 296.1 [288.2-304.1]
+  prior only (no learning) - ucb1              likes per 1,000 impressions -83.2 [-108.6--57.8]
+
+*** SIMULATION, NOT AN A/B TEST. Reward = 'liked given rated' (ignores click probability). No real person saw anything. ***
+== CUMULATIVE LIKES (k=2) AT 10 / 25 / 50 / 100% OF THE REQUEST STREAM, 629-arm set (mean over seeds) ==
+                             10%      25%      50%     100%
+random                    2510.0   6120.0  12092.0  24373.0
+greedy                    4167.0  10418.0  20627.0  41281.0
+eps_greedy 0.1            4855.0  12356.0  24652.0  49421.0
+ucb1                      3146.0   7965.0  16709.0  37271.0
+ucb1 + content prior      3322.0   8331.0  17348.0  38429.0
+thompson (Beta)           4705.0  12097.0  24388.0  50440.0
+prior only (no learning)  3064.0   7199.0  14227.0  27887.0
+oracle (expected)         5435.0  13607.0  26956.0  54336.0
+
+*** SIMULATION, NOT AN A/B TEST. Reward = 'liked given rated' (ignores click probability). No real person saw anything. ***
+== SENSITIVITY, 629-arm set, k=3 ==
+                         likes per 1,000 impressions regret as % of random's
+random                           381.3 [379.9-382.7]     100.0 [100.0-100.0]
+greedy                           655.2 [642.3-668.0]        39.3 [36.6-42.1]
+eps_greedy 0.1                   767.5 [758.5-776.6]        14.5 [13.8-15.3]
+ucb1                             623.4 [615.3-631.4]        46.5 [45.6-47.4]
+ucb1 + content prior             637.8 [629.2-646.4]        43.3 [42.3-44.3]
+thompson (Beta)                  786.8 [777.3-796.4]         10.3 [9.9-10.8]
+prior only (no learning)         435.0 [422.1-447.8]        88.1 [85.1-91.0]
+oracle (expected)                833.2 [824.6-841.8]                       0
+
+*** SIMULATION, NOT AN A/B TEST. Reward = 'liked given rated' (ignores click probability). No real person saw anything. ***
+== SENSITIVITY, 629-arm set, shelf 180 days ==
+                         likes per 1,000 impressions regret as % of random's
+random                           384.2 [382.7-385.7]     100.0 [100.0-100.0]
+greedy                           639.5 [629.2-649.8]        39.6 [37.4-41.8]
+eps_greedy 0.1                   735.8 [727.5-744.0]        16.8 [16.0-17.6]
+ucb1                             577.9 [571.9-583.9]        54.2 [53.4-54.9]
+ucb1 + content prior             593.0 [586.5-599.6]        50.6 [49.9-51.4]
+thompson (Beta)                  743.8 [735.4-752.2]        14.9 [14.4-15.4]
+prior only (no learning)         455.4 [443.2-467.5]        83.2 [80.3-86.0]
+oracle (expected)                806.9 [799.7-814.2]                       0
+
+*** SIMULATION, NOT AN A/B TEST. Reward = 'liked given rated' (ignores click probability). No real person saw anything. ***
+== SENSITIVITY, 629-arm set, eps 0.05 / 0.2 ==
+                regret as % of random's likes per 1,000 impressions
+random              100.0 [100.0-100.0]         381.9 [380.4-383.4]
+eps_greedy 0.05        14.5 [13.0-15.9]         783.5 [772.4-794.6]
+eps_greedy 0.2         23.6 [23.2-24.0]         740.4 [732.8-747.9]
+for comparison eps_greedy 0.1: regret 16.3 [15.5-17.2]% of random's
+
+== COST TO MAIN-LANE QUALITY OF RESERVING SLOTS (Module 6 M2 out-of-fold ranking, main lane only, 15,530 held-out users; REAL held-out likes) ==
+                                                                       NDCG@10                                 Recall@20                     main-lane likes shown per 1,000 requests
+none (all 20 slots main lane)         0.1388 (diff +0.0000 [+0.0000, +0.0000])  0.2529 (diff +0.0000 [+0.0000, +0.0000])     1259 (lost 0 = 0.0% of the main-lane hits in the top 20)
+2 reserved at the END (19, 20)        0.1388 (diff +0.0000 [+0.0000, +0.0000])  0.2377 (diff -0.0152 [-0.0164, -0.0140])    1171 (lost 88 = 7.0% of the main-lane hits in the top 20)
+3 reserved at the END (18, 19, 20)    0.1388 (diff +0.0000 [+0.0000, +0.0000])  0.2305 (diff -0.0223 [-0.0238, -0.0209])  1128 (lost 131 = 10.4% of the main-lane hits in the top 20)
+2 reserved INSIDE the top 10 (5, 10)  0.1250 (diff -0.0138 [-0.0144, -0.0132])  0.2377 (diff -0.0152 [-0.0164, -0.0140])    1171 (lost 88 = 7.0% of the main-lane hits in the top 20)
+3 reserved, positions 5, 10, 15       0.1250 (diff -0.0138 [-0.0144, -0.0132])  0.2305 (diff -0.0223 [-0.0238, -0.0209])  1128 (lost 131 = 10.4% of the main-lane hits in the top 20)
+
+*** SIMULATION, NOT AN A/B TEST. Reward = 'liked given rated' (ignores click probability). No real person saw anything. ***
+== SIMULATED LANE LIKES PER 1,000 REQUESTS FOR THE RESERVED SLOTS (629-arm set) ==
+                      2 slots  3 slots
+random                  764.0   1144.0
+ucb1                   1168.0   1870.0
+ucb1 + content prior   1204.0   1913.0
+thompson (Beta)        1581.0   2360.0
+WARNING - DO NOT NET THESE AGAINST THE 'LOST' NUMBERS ABOVE. The lane reward is 'liked given rated' (about 40-50% of impressions, from self-selected raters, no click model); the main-lane figure counts how often a displayed slot is one of the user's later liked items (about 4% for slots 19-20). Different units and different populations. Compare only RELATIVE statements: reserving 2 end slots removes the stated % of main-lane top-20 hits; the best learning strategy earns the stated multiple of random's simulated lane reward.
+
+== WHAT COULD MAKE THIS SIMULATION MISLEADING ==
+1. Like-rates come from people who chose to rate the film, so they are probably higher than for a viewer shown the film by a lane; the reward ignores click probability.
+2. One hidden rate per arm for everybody: real taste varies by user, so a non-contextual bandit undervalues niche films (LinUCB-style methods are the next step).
+3. The main arm set needs >= 5 ratings, i.e. films that already attracted viewers; real duds are missing, which makes the problem easier. The 2,031-arm set is heavily shrunk toward the global rate.
+4. No position bias, fatigue, repeat exposure or real viewing behaviour; every impression is instantly judged.
+5. Rates are stationary within the window; real interest decays after release.
+6. The content prior was learned on older films and may transfer imperfectly to new ones.
+7. Intervals reflect seeds (truth draws and coin flips), not modelling choices; hidden rates are themselves estimated from thin data.
+8. The slot-cost comparison mixes real held-out likes in one evaluation with simulated likes in another.
+*** SIMULATION, NOT AN A/B TEST. Reward = 'liked given rated' (ignores click probability). No real person saw anything. ***

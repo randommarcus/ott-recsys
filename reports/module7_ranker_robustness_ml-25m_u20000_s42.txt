@@ -1,0 +1,62 @@
+== CONFIG ==
+dataset_name               ml-25m
+raw_dir                    /home/sudu/ott-recsys/data/raw
+processed_dir              /home/sudu/ott-recsys/data/processed
+sample_users               20000
+sample_seed                42
+min_sample_interactions    20
+mem_limit_gb               7.5
+tune_users                 3000
+positive_threshold         4.0
+session_gap_minutes        30
+burst_window_minutes       10
+burst_min_ratings          30
+train_frac                 0.7
+val_frac                   0.15
+min_user_interactions      10
+user_test_frac             0.2
+user_val_frac              0.1
+history_len                20
+embed_dim                  64
+temperature                0.07
+batch_size                 2048
+learning_rate              0.001
+id_dropout                 0.25
+max_epochs                 15
+patience                   2
+model_seed                 0
+
+ROBUSTNESS CHECK of the Module 6 context conclusion. Old: {'n_estimators': 800, 'learning_rate': 0.08, 'max_depth': 6, 'subsample': 0.8, 'colsample_bytree': 0.8, 'min_child_weight': 1.0, 'max_bin': 128, 'early_stopping_rounds': 30, 'lambdarank_pair_method': 'topk', 'lambdarank_num_pair_per_sample': 20} with inner set 10%.
+New: learning_rate 0.03, up to 2000 trees, early stopping patience 100, inner early-stopping set 25% of each training fold's users. Same 5 user-grouped folds; out-of-fold; held-out 15,530 users; test locked.
+
+== HELD-OUT USERS, end-to-end and reachable-only: mean [95% CI] ==
+                                e2e_ndcg10          e2e_recall20             rr_ndcg10           rr_recall20
+tt (two-tower order)  0.1242 [0.121-0.127]  0.2321 [0.227-0.237]  0.1515 [0.148-0.155]  0.3197 [0.314-0.325]
+M0 old (lr 0.08)      0.1370 [0.134-0.140]  0.2508 [0.246-0.256]  0.1688 [0.165-0.172]  0.3533 [0.348-0.359]
+M0 new (lr 0.03)      0.1377 [0.135-0.141]  0.2519 [0.247-0.257]  0.1699 [0.167-0.174]  0.3552 [0.350-0.361]
+M1 old (lr 0.08)      0.1379 [0.135-0.141]  0.2512 [0.246-0.256]  0.1702 [0.167-0.174]  0.3540 [0.348-0.360]
+M1 new (lr 0.03)      0.1374 [0.134-0.141]  0.2522 [0.247-0.257]  0.1696 [0.166-0.173]  0.3553 [0.350-0.361]
+M2 old (lr 0.08)      0.1388 [0.136-0.142]  0.2529 [0.248-0.258]  0.1713 [0.168-0.175]  0.3576 [0.352-0.364]
+M2 new (lr 0.03)      0.1392 [0.136-0.143]  0.2536 [0.249-0.258]  0.1722 [0.169-0.176]  0.3590 [0.354-0.365]
+
+== PAIRED DIFFERENCES (* = interval excludes 0) ==
+-- old --
+  M1 - M0 (hour/day):  e2e_ndcg10 +0.0010 [+0.0000, +0.0019]*  e2e_recall20 +0.0003 [-0.0012, +0.0019]  rr_ndcg10 +0.0014 [+0.0000, +0.0027]*  rr_recall20 +0.0007 [-0.0014, +0.0029]
+  M2 - M1 (session):   e2e_ndcg10 +0.0009 [-0.0003, +0.0021]  e2e_recall20 +0.0017 [-0.0001, +0.0034]  rr_ndcg10 +0.0011 [-0.0005, +0.0028]  rr_recall20 +0.0035 [+0.0010, +0.0060]*
+  M2 - M0 (all context): e2e_ndcg10 +0.0018 [+0.0006, +0.0031]*  e2e_recall20 +0.0020 [+0.0003, +0.0038]*  rr_ndcg10 +0.0025 [+0.0010, +0.0043]*  rr_recall20 +0.0043 [+0.0017, +0.0070]*
+-- new --
+  M1 - M0 (hour/day):  e2e_ndcg10 -0.0003 [-0.0012, +0.0006]  e2e_recall20 +0.0003 [-0.0011, +0.0017]  rr_ndcg10 -0.0003 [-0.0015, +0.0008]  rr_recall20 +0.0001 [-0.0018, +0.0019]
+  M2 - M1 (session):   e2e_ndcg10 +0.0018 [+0.0005, +0.0030]*  e2e_recall20 +0.0013 [-0.0003, +0.0029]  rr_ndcg10 +0.0026 [+0.0010, +0.0042]*  rr_recall20 +0.0037 [+0.0014, +0.0062]*
+  M2 - M0 (all context): e2e_ndcg10 +0.0015 [+0.0003, +0.0027]*  e2e_recall20 +0.0017 [+0.0001, +0.0033]*  rr_ndcg10 +0.0022 [+0.0008, +0.0038]*  rr_recall20 +0.0038 [+0.0014, +0.0062]*
+-- new minus old, same variant --
+  M0: e2e_ndcg10 +0.0008 [-0.0003, +0.0018]  e2e_recall20 +0.0011 [-0.0006, +0.0027]  rr_ndcg10 +0.0012 [-0.0002, +0.0026]  rr_recall20 +0.0018 [-0.0006, +0.0041]
+  M1: e2e_ndcg10 -0.0005 [-0.0016, +0.0006]  e2e_recall20 +0.0011 [-0.0005, +0.0027]  rr_ndcg10 -0.0005 [-0.0021, +0.0008]  rr_recall20 +0.0012 [-0.0011, +0.0035]
+  M2: e2e_ndcg10 +0.0004 [-0.0009, +0.0016]  e2e_recall20 +0.0007 [-0.0010, +0.0025]  rr_ndcg10 +0.0009 [-0.0007, +0.0025]  rr_recall20 +0.0014 [-0.0011, +0.0038]
+  M0 new - tt: e2e_ndcg10 +0.0135 [+0.0116, +0.0153]*  e2e_recall20 +0.0198 [+0.0171, +0.0227]*  rr_ndcg10 +0.0184 [+0.0160, +0.0208]*  rr_recall20 +0.0355 [+0.0316, +0.0396]*
+
+== TREES PER FOLD (early stopping) ==
+M0: old [31, 39, 22, 28, 139]   new [208, 104, 210, 78, 188]  (399 s)
+M1: old [46, 55, 28, 63, 76]   new [112, 65, 226, 51, 65]  (330 s)
+M2: old [77, 46, 65, 45, 41]   new [467, 403, 351, 99, 151]  (714 s)
+
+SUMMARY: all-context gain (M2 - M0, e2e NDCG@10) old +0.0018 [+0.0006, +0.0031]; new +0.0015 [+0.0003, +0.0027].
