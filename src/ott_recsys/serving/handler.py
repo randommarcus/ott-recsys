@@ -52,7 +52,7 @@ class App:
             raise BadRequest("model must be M2 or M3b")
         device = body.get("device")
         if model == "M3b" and device not in DEVICES:
-            raise BadRequest("M3b needs a SIMULATED device: " + ", ".join(DEVICES))
+            raise BadRequest("M3b needs a SIMULATED device: tv, mobile, web or tablet")
         try:
             gap = float(body.get("gap_minutes", 10))
         except (TypeError, ValueError):
@@ -188,8 +188,8 @@ def handle(app: App, method: str, path: str, body: dict):
         if method == "POST" and path == "/feedback":
             return app.feedback(body)
         return 404, {"error": "unknown route"}
-    except BadRequest as exc:
-        return 400, {"error": str(exc)}
+    except BadRequest as bad:
+        return 400, {"error": bad.args[0]}  # BadRequest is only ever raised with a literal message written in this file
     except Exception as exc:  # never echo the message: it could contain connection details
         log.error("request failed: %s", type(exc).__name__)
         return 500, {"error": "internal error", "type": type(exc).__name__}
