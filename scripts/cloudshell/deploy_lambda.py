@@ -35,7 +35,8 @@ def step(label, fn) -> bool:
         print(f"  {label:<52s} ok", flush=True)
         return True
     except Exception as exc:
-        print(f"  {label:<52s} {word(exc)}", flush=True)
+        shown = word(exc)
+        print(f"  {label:<52s} {shown}", flush=True)
         return False
 
 
@@ -50,7 +51,8 @@ def create(session, region, zip_path: Path, memory: int, timeout: int) -> int:
         print(f"  {'log group':<52s} created", flush=True)
     except Exception as exc:
         if code_of(exc) != "ResourceAlreadyExistsException":
-            print(f"  {'log group':<52s} {word(exc)}")
+            shown = word(exc)
+            print(f"  {'log group':<52s} {shown}")
             return 1
         print(f"  {'log group':<52s} already exists", flush=True)
     if not step("log retention 7 days", lambda: logs.put_retention_policy(logGroupName=LOG_GROUP, retentionInDays=7)):
@@ -95,7 +97,8 @@ def smoke(session, region, user_id: int) -> int:
             extra = f"{len(body['items'])} items, server {t.get('server_total')} ms, cold start {body['diagnostics']['cold_start']}" if "items" in body else "ok"
             print(f"  {label:<52s} 200: {extra}", flush=True)
         except Exception as exc:
-            print(f"  {label:<52s} {word(exc)}")
+            shown = word(exc)
+            print(f"  {label:<52s} {shown}")
             bad += 1
     return 1 if bad else 0
 
@@ -105,7 +108,8 @@ def show_url(session, region) -> int:
         print(session.client("lambda", region_name=region).get_function_url_config(FunctionName=FN)["FunctionUrl"])
         return 0
     except Exception as exc:
-        print(f"show-url: {word(exc)}")
+        shown = word(exc)
+        print(f"show-url: {shown}")
         return 1
 
 

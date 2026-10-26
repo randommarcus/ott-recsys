@@ -132,6 +132,89 @@ def test_permtest_rejects_other_regions_and_reports_a_missing_profile(capsys):
     assert "RuntimeError" in out and ACCOUNT not in out
 
 
+def test_session_credentials_use_no_profile_and_skip_only_the_ec2_check(capsys, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    w = World()
+    profiles = []
+    def factory(p, r):
+        profiles.append(p)
+        return w.session(p, r)
+    assert permtest.main(["--region", "ap-south-1", "--session-credentials"], session_factory=factory, signed_call=lambda u, r, c: 200, sleep=lambda s: None) == 0
+    out = capsys.readouterr().out
+    no_leaks(out)
+    assert profiles == [None], "the default credential chain means profile_name=None"
+    assert "credentials: default chain (no profile)" in out
+    assert [l for l in out.splitlines() if "ec2 describe_instances" in l and "SKIPPED (session credentials" in l]
+    assert not [c for c in w.calls if c[1] == "ec2"], "no EC2 call may be made in session mode"
+    assert w.res == set() and "UNEXPECTED" not in out
+    # every other step still ran and was allowed
+    body = [l for l in out.splitlines() if l.startswith("  ") and "cleanup:" not in l and "ec2 describe" not in l]
+    assert body and all("ALLOWED" in l for l in body)
+    assert (tmp_path / "logs" / "permtest_ap-south-1.json").exists()
+
+
+def test_session_credentials_keep_the_naming_rule_and_the_role(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    w = World()
+    permtest.main(["--region", "eu-central-1", "--session-credentials"], session_factory=lambda p, r: w.session(p, r), signed_call=lambda u, r, c: 200, sleep=lambda s: None)
+    names = [kw[k] for _, _, _, kw in w.calls for k in ("FunctionName", "TableName", "logGroupName", "Name") if k in kw]
+    assert names and all("ott" in n for n in names)
+    assert [kw["Role"] for _, _, m, kw in w.calls if m == "create_function"] == [f"arn:aws:iam::{ACCOUNT}:role/ott-recsys-lambda-role"]
+
+
+def test_session_credentials_and_profile_cannot_be_combined():
+    with pytest.raises(SystemExit):
+        permtest.main(["--region", "eu-central-1", "--session-credentials", "--profile", "ott-dev"])
+    with pytest.raises(SystemExit):
+        teardown.main(["--session-credentials", "--profile", "ott-dev"])
+
+
+def test_default_is_still_the_ott_dev_profile(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    w = World()
+    run_permtest(w)
+    assert w.profile == "ott-dev"
+    w2 = World()
+    run_teardown(w2)
+    assert w2.profile == "ott-dev"
+
+
+def test_teardown_with_session_credentials(capsys):
+    w = World(existing=populated())
+    seen = []
+    assert teardown.main(["--session-credentials", "--region", "eu-central-1", "--confirm", "DELETE-OTT"],
+                         session_factory=lambda p, r: seen.append(p) or w.session(p, r)) == 0
+    out = capsys.readouterr().out
+    assert seen == [None] and "credentials: default chain (no profile)" in out and "remaining: 0" in out
+    assert len([1 for r, k, n in w.res if r == "ap-south-1"]) == 6
+    no_leaks(out)
+
+
+def test_session_mode_missing_credentials_message_has_no_error_text(capsys):
+    def broken(p, r): raise RuntimeError("NoCredentialsError text with " + ACCOUNT)
+    assert permtest.main(["--region", "eu-central-1", "--session-credentials"], session_factory=broken) == 2
+    out = capsys.readouterr().out
+    assert "default credentials" in out and "RuntimeError" in out and ACCOUNT not in out
+
+
+def test_cloudshell_scripts_are_standalone_single_files():
+    """Upload one file: only the standard library plus boto3/botocore (imported lazily), no project code, no dotenv, no repo paths."""
+    import ast, sys
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    for name in ("scripts/aws_permtest.py", "scripts/aws_teardown.py"):
+        tree = ast.parse((root / name).read_text())
+        mods = set()
+        for n in ast.walk(tree):
+            if isinstance(n, ast.Import):
+                mods |= {a.name.split(".")[0] for a in n.names}
+            if isinstance(n, ast.ImportFrom):
+                assert n.level == 0, name
+                mods.add(n.module.split(".")[0])
+        assert mods <= set(sys.stdlib_module_names) | {"boto3", "botocore"}, (name, mods)
+        assert "__file__" not in (root / name).read_text(), f"{name} must not depend on where it sits in the repo"
+
+
 # ---------------------------------------------------------------------------------------------------- aws_teardown
 def populated():
     res = set()

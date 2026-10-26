@@ -1,5 +1,7 @@
 """A tiny fake AWS used by the checkpoint-2 script tests. No network, no profile, no credentials."""
 import importlib.util
+import io
+import json
 from pathlib import Path
 
 from botocore.exceptions import ClientError
@@ -29,6 +31,7 @@ class World:
         self.deny.update(deny or {})
         self.calls = []  # (region, service, method, kwargs)
         self.ssm_values = {}
+        self.items = {}
         self.fail_after = None
 
     def session(self, profile="ott-dev", region="eu-central-1"):
@@ -43,10 +46,53 @@ class Session:
     def client(self, service, region_name=None, **kw):
         return Client(self.w, service, region_name or self.region)
 
+    def resource(self, service, region_name=None, **kw):
+        return Resource(self.w, region_name or self.region)
+
     def get_credentials(self):
         class C:
             def get_frozen_credentials(self): return object()
         return C()
+
+
+class Resource:
+    """boto3 DynamoDB resource: Table(name).batch_writer / get_item over world.items[(region, table)][key]."""
+    def __init__(self, world, region):
+        self.w, self.region = world, region
+
+    def Table(self, name):
+        return Table(self.w, self.region, name)
+
+
+class Table:
+    def __init__(self, world, region, name):
+        self.w, self.region, self.name = world, region, name
+
+    def _guard(self, method):
+        self.w.calls.append((self.region, "dynamodb", method, {"TableName": self.name}))
+        if ("dynamodb", method) in self.w.deny:
+            raise client_error(*self.w.deny[("dynamodb", method)], op=method)
+        if (self.region, "table", self.name) not in self.w.res:
+            raise client_error("ResourceNotFoundException", op=method)
+        return self.w.items.setdefault((self.region, self.name), {})
+
+    def batch_writer(self, overwrite_by_pkeys=None):
+        table = self
+
+        class BW:
+            def __enter__(s): return s
+            def __exit__(s, *a): return False
+            def put_item(s, Item):
+                store = table._guard("batch_write_item")
+                for k, v in Item.items():
+                    assert isinstance(v, (int, bytes)) and not isinstance(v, float), "only ints and bytes may be written"
+                store[Item["user_id"]] = Item
+        return BW()
+
+    def get_item(self, Key):
+        store = self._guard("get_item")
+        item = store.get(Key["user_id"])
+        return {"Item": item} if item is not None else {}
 
 
 class Waiter:
@@ -105,11 +151,21 @@ class Client:
                     raise client_error(MISSING[kind], op=method)
                 if method == "get_parameter":
                     return {"Parameter": {"Value": w.ssm_values.get(kw[key], "")}}
+                if method == "get_function_url_config":
+                    return {"FunctionUrl": URL}
                 return {}
             if method == "create_function_url_config":
                 w.res.add((self.region, "url", kw["FunctionName"]))
                 return {"FunctionUrl": URL}
             if method == "invoke":
-                return {"StatusCode": 200}
+                ev = json.loads(kw["Payload"])
+                path = ev.get("rawPath", "/health")
+                body = {"ok": True} if path == "/health" else {"items": [{"position": i} for i in range(1, 21)], "timings_ms": {"server_total": 12.3},
+                                                               "diagnostics": {"cold_start": True}}
+                return {"StatusCode": 200, "Payload": io.BytesIO(json.dumps({"statusCode": 200, "body": json.dumps(body)}).encode())}
+            if method == "get_function_url_config":
+                if (self.region, "url", kw["FunctionName"]) not in w.res:
+                    raise client_error("ResourceNotFoundException", op=method)
+                return {"FunctionUrl": URL}
             return {}
         return call

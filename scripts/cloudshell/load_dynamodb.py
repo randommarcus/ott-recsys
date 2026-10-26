@@ -24,6 +24,11 @@ def code_of(exc) -> str:
     return str((getattr(exc, "response", None) or {}).get("Error", {}).get("Code", "")) or type(exc).__name__
 
 
+def word_of(exc) -> str:
+    c = code_of(exc)
+    return "DENIED" if "AccessDenied" in c else f"ERROR({c})"
+
+
 def decode(line: str) -> dict:
     return {k: (base64.b64decode(v["b"]) if isinstance(v, dict) else v) for k, v in json.loads(line).items()}
 
@@ -40,7 +45,8 @@ def create_tables(session, region) -> int:
             print(f"  {name:<10s} created (on-demand)")
         except Exception as exc:
             c = code_of(exc)
-            print(f"  {name:<10s} {'already exists' if c == 'ResourceInUseException' else ('DENIED' if 'AccessDenied' in c else 'ERROR(' + c + ')')}")
+            shown = "already exists" if c == "ResourceInUseException" else word_of(exc)
+            print(f"  {name:<10s} {shown}")
             bad += c != "ResourceInUseException"
     return 1 if bad else 0
 
@@ -63,7 +69,8 @@ def load(session, region, folder: Path, start_part: int = 1) -> int:
                     bw.put_item(Item=decode(line))
                     n += 1
         except Exception as exc:
-            print(f"  part {i}: stopped after {n} items ({'DENIED' if 'AccessDenied' in code_of(exc) else 'ERROR(' + code_of(exc) + ')'}); resume with --start-part {i}")
+            why = word_of(exc)
+            print(f"  part {i}: stopped after {n} items ({why}); resume with --start-part {i}")
             return 1
         total += n
         print(f"  part {i}/{len(manifest['chunks'])}: {n} items written", flush=True)
@@ -85,7 +92,8 @@ def check(session, region, folder: Path) -> int:
         for uid in ids[:40]:
             found += "Item" in table.get_item(Key={"user_id": uid})
     except Exception as exc:
-        print(f"check: ERROR({code_of(exc)})")
+        why = word_of(exc)
+        print(f"check: {why}")
         return 1
     print(f"check: {found} of {len(ids[:40])} sample users found")
     return 0 if found == len(ids[:40]) else 1
