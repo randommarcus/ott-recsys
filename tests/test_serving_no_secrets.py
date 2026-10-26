@@ -135,7 +135,8 @@ class _Resp:
 
 
 def _leaks(*texts):
-    return [s for t in texts for s in (CANARY_URI, CANARY_TOKEN, "CANARY") if s in str(t)]
+    # value fragments, not the word CANARY: tracebacks print source lines, and this file's own lines name CANARY_URI
+    return [s for t in texts for s in (CANARY_URI, CANARY_TOKEN, "7f3a9c", "91c2d4e8") if s in str(t)]
 
 
 @pytest.mark.parametrize("make_exc", [
@@ -216,6 +217,21 @@ def test_live_mode_failures_fall_back_without_leaking(monkeypatch, capsys, caplo
     assert status == 200, resp
     assert resp["diagnostics"]["fallback"] and "live retrieval failed" in resp["diagnostics"]["fallback"]
     assert _leaks(json.dumps(resp), out.out, out.err, caplog.text) == []
+
+
+@pytest.mark.parametrize("behaviour", [
+    _fail_with(urllib.error.URLError(f"unreachable {CANARY_URI}")),
+    _fail_with(urllib.error.HTTPError(CANARY_URI, 401, f"unauthorized {CANARY_TOKEN}", {}, io.BytesIO(CANARY_TOKEN.encode()))),
+    _fail_with(RuntimeError(f"boom {CANARY_URI} {CANARY_TOKEN}")),
+    lambda req, timeout=None: _Resp(b"<html>" + CANARY_TOKEN.encode()),
+    lambda req, timeout=None: _Resp(json.dumps({"code": 80001, "message": f"invalid token {CANARY_TOKEN} at {CANARY_URI}"}).encode()),
+], ids=["urlerror", "http401", "runtime", "not-json", "zilliz-error-code"])
+def test_search_client_errors_carry_no_secret_text(monkeypatch, behaviour):
+    """The client's own exception (message AND formatted traceback) must be clean, not just what the handler chooses to show."""
+    monkeypatch.setattr(urllib.request, "urlopen", behaviour)
+    with pytest.raises(SearchError) as ei:
+        ZillizREST(ZillizConfig(CANARY_URI, CANARY_TOKEN)).search("c", "vector", [0.1, 0.2], 5)
+    assert _leaks(ei.value, repr(ei.value), "".join(traceback.format_exception(ei.value))) == []
 
 
 def test_unexpected_crash_returns_only_the_exception_type(monkeypatch, capsys, caplog):
