@@ -13,7 +13,7 @@ Never touches the test portion (tests/test_module2.py scans it)."""
 import numpy as np
 import pandas as pd
 
-STRATEGIES = ("random", "greedy", "eps_greedy", "ucb1", "ucb1_prior", "thompson", "prior_only")
+STRATEGIES = ("random", "greedy", "eps_greedy", "ucb1", "ucb1_prior", "thompson", "prior_only", "ucb_c", "ucb_c_prior", "ucb_tuned")  # new ones appended: older seeds unchanged
 NEVER = np.inf
 
 
@@ -51,7 +51,7 @@ def draw_coins(n_req: int, k: int, n_seeds: int, seed: int) -> np.ndarray:
     return np.random.default_rng([seed, 1]).random((n_req, k, n_seeds))
 
 
-def strategy_keys(strategy: str, n, s, p_true, mu, w: float, eps: float, m0: float, rng) -> np.ndarray:
+def strategy_keys(strategy: str, n, s, p_true, mu, w: float, eps: float, m0: float, rng, c: float = np.sqrt(2.0)) -> np.ndarray:
     """Score of each eligible arm for each seed; the top-k keys are shown. n, s, p_true: [seeds, eligible arms]."""
     S, m = n.shape
     if strategy == "random":
@@ -76,6 +76,18 @@ def strategy_keys(strategy: str, n, s, p_true, mu, w: float, eps: float, m0: flo
     if strategy == "ucb1_prior":
         n_eff = n + w  # the content prior counts as w pseudo-ratings at the prior mean
         return (s + w * mu) / n_eff + np.sqrt(2.0 * np.log(N) / n_eff) + noise
+    if strategy == "ucb_c":  # bonus c*sqrt(ln t / n); c = sqrt(2) is exactly UCB1
+        idx = s / np.maximum(n, 1) + c * np.sqrt(np.log(N) / np.maximum(n, 1))
+        return np.where(n == 0, 1e9 + rng.random((S, m)), idx)
+    if strategy == "ucb_tuned":  # Auer et al. 2002; Bernoulli rewards: sum of squares = s
+        nn = np.maximum(n, 1)
+        mean = s / nn
+        v = mean * (1.0 - mean) + np.sqrt(2.0 * np.log(N) / nn)
+        idx = mean + np.sqrt(np.log(N) / nn * np.minimum(0.25, v))
+        return np.where(n == 0, 1e9 + rng.random((S, m)), idx)
+    if strategy == "ucb_c_prior":  # prior counts as w pseudo-ratings; same constant c
+        n_eff = n + w
+        return (s + w * mu) / n_eff + c * np.sqrt(np.log(N) / n_eff) + noise
     raise ValueError(strategy)
 
 
@@ -83,7 +95,7 @@ def estimate(strategy: str, n, s, mu, w: float, m0: float):
     """The strategy's own current belief about each arm's like-rate (used for 'time to find the top arms')."""
     if strategy == "prior_only":
         return np.broadcast_to(mu, n.shape)
-    if strategy == "ucb1_prior":
+    if strategy in ("ucb1_prior", "ucb_c_prior"):
         return (s + w * mu) / (n + w)
     return np.where(n > 0, s / np.maximum(n, 1), m0)
 
@@ -101,7 +113,8 @@ def oracle_expected(arms: dict, req_t, k: int, shelf_days: float, p: np.ndarray)
 
 
 def simulate(arms: dict, req_t, strategy: str, k: int, shelf_days: float, n_seeds: int, seed: int, w: float = 0.0,
-             eps: float = 0.1, probe_every: int = 100, top_m: int = 10, top_hits: int = 5, min_pool: int = 50, p=None, coins=None) -> dict:
+             eps: float = 0.1, probe_every: int = 100, top_m: int = 10, top_hits: int = 5, min_pool: int = 50, p=None, coins=None,
+             c: float = np.sqrt(2.0), snapshot_at: int | None = None) -> dict:
     A, R = len(arms["a"]), len(req_t)
     p = draw_truth(arms, n_seeds, seed) if p is None else p
     coins = draw_coins(R, k, n_seeds, seed) if coins is None else coins
@@ -112,15 +125,17 @@ def simulate(arms: dict, req_t, strategy: str, k: int, shelf_days: float, n_seed
     rows = np.arange(n_seeds)[:, None]
     reward, expected = np.zeros((R, n_seeds), np.float32), np.zeros((R, n_seeds), np.float32)
     found_at = np.full(n_seeds, NEVER)
-    served = 0
+    served, n_snap = 0, None
     for r in range(R):
+        if snapshot_at is not None and r == snapshot_at:
+            n_snap = n.copy()  # impressions after the first `snapshot_at` requests
         lo, hi = lo_all[r], hi_all[r]
         m = hi - lo
         if m == 0:
             continue
         served += 1
         kk = min(k, m)
-        keys = strategy_keys(strategy, n[:, lo:hi], s[:, lo:hi], p[:, lo:hi], mu[lo:hi], w, eps, m0, rng)
+        keys = strategy_keys(strategy, n[:, lo:hi], s[:, lo:hi], p[:, lo:hi], mu[lo:hi], w, eps, m0, rng, c)
         cols = lo + np.argpartition(-keys, kk - 1, axis=1)[:, :kk]
         pc = np.take_along_axis(p, cols, axis=1)
         rew = coins[r, :kk, :].T < pc
@@ -134,7 +149,8 @@ def simulate(arms: dict, req_t, strategy: str, k: int, shelf_days: float, n_seed
             mine = np.argpartition(-est, top_m - 1, axis=1)[:, :top_m]
             hits = np.take_along_axis(true_top, mine, axis=1).sum(1)
             found_at = np.where(np.isinf(found_at) & (hits >= top_hits), r, found_at)
-    return {"reward": reward, "expected": expected, "impressions": n, "found_at": found_at, "p": p, "served_requests": served}
+    return {"reward": reward, "expected": expected, "impressions": n, "found_at": found_at, "p": p, "served_requests": served,
+            "impressions_at_snapshot": n_snap}
 
 
 # ---------------------------------------------------------------- metrics
@@ -208,3 +224,37 @@ def displayed_metrics(disp: np.ndarray, n_truth: np.ndarray):
     dcg = (disp[:, :10] * disc).sum(1)
     nt = np.asarray(n_truth)
     return dcg / ideal[np.minimum(nt, 10)], disp[:, :20].sum(1) / nt
+
+
+# ---------------------------------------------------------------- second-half evaluation and parameter selection
+def window_metrics(res: dict, oracle_exp: np.ndarray, start: int, arm_range=None) -> dict:
+    """Per-seed metrics over requests [start:] only. Needs simulate(..., snapshot_at=start). Impressions are counted
+    inside the window, so exposure reflects the second half alone."""
+    imp = res["impressions"] - res["impressions_at_snapshot"]
+    p = res["p"]
+    a, b = arm_range if arm_range is not None else (0, imp.shape[1])
+    top_arms = p >= np.quantile(p, 0.9, axis=1, keepdims=True)
+    return {"likes": res["reward"][start:].sum(0), "impressions": imp.sum(1),
+            "regret": (oracle_exp[start:] - res["expected"][start:]).sum(0),
+            "gini": np.array([gini(imp[i, a:b]) for i in range(imp.shape[0])]), "never_shown": (imp[:, a:b] == 0).mean(1),
+            "top10pct_share": (imp * top_arms).sum(1) / np.maximum(imp.sum(1), 1)}
+
+
+def pick_best(grid, means) -> tuple:
+    """Grid value with the highest mean score and where it sits: 'lower' / 'upper' grid edge, or None if interior."""
+    i = int(np.argmax(means))
+    return grid[i], ("lower" if i == 0 else "upper" if i == len(grid) - 1 else None)
+
+
+def select_param(arms: dict, req_first_half, strategy: str, param: str, grid, k: int, shelf_days: float, n_seeds: int, seed: int,
+                 w: float = 0.0, **fixed):
+    """Choose a strategy parameter using ONLY the requests passed in (the caller passes the first half of the stream) and
+    these seeds. Score = likes per impression, averaged over seeds. Returns (best, edge, per-seed scores by value)."""
+    p = draw_truth(arms, n_seeds, seed)
+    coins = draw_coins(len(req_first_half), k, n_seeds, seed)
+    scores = {}
+    for g in grid:
+        res = simulate(arms, req_first_half, strategy, k, shelf_days, n_seeds, seed, w=w, p=p, coins=coins, **{param: g}, **fixed)
+        scores[g] = res["reward"].sum(0) / np.maximum(res["impressions"].sum(1), 1)
+    best, edge = pick_best(list(grid), [scores[g].mean() for g in grid])
+    return best, edge, scores
