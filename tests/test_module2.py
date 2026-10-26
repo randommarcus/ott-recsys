@@ -165,9 +165,10 @@ def test_tuning_code_never_references_test_split():
     .test or unlock_test."""
     scripts = Path(__file__).resolve().parents[1] / "scripts"
     files = [SRC / "experiments.py", SRC / "eval.py", SRC / "baselines.py", SRC / "content.py",
-             SRC / "newrelease.py", SRC / "tmdb.py", SRC / "twotower.py", SRC / "export.py", scripts / "run_module2.py", scripts / "run_module3.py",
+             SRC / "newrelease.py", SRC / "tmdb.py", SRC / "twotower.py", SRC / "export.py", SRC / "ncf.py", SRC / "rerank.py", scripts / "run_module2.py", scripts / "run_module3.py",
              scripts / "build_embeddings.py", scripts / "fetch_tmdb.py", scripts / "train_two_tower.py",
-             scripts / "run_module4.py", scripts / "run_module4_all.py", scripts / "run_module4b.py"]
+             scripts / "run_module4.py", scripts / "run_module4_all.py", scripts / "run_module4b.py", scripts / "build_candidates.py", scripts / "train_ncf.py",
+             scripts / "run_module5.py", scripts / "run_module5_all.py"]
     for f in files:
         tree = ast.parse(f.read_text())
         for node in ast.walk(tree):
