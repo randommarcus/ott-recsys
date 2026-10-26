@@ -1,0 +1,18 @@
+{
+  "status": "done",
+  "test_metrics_emitted": true,
+  "attempts": 1,
+  "first_started_at": "2026-10-26 16:08:38",
+  "last_started_at": "2026-10-26 16:08:38",
+  "mode": "real",
+  "git_commit": "cc202393e615d2a8fa770625f6269b29d30ab1c2",
+  "preregistration_commits": {
+    "reports/module8_protocol.md": "e3d5da3b586c59967141a9fffc8485dc92a44bfa",
+    "reports/module8_predictions.md": "e3d5da3b586c59967141a9fffc8485dc92a44bfa"
+  },
+  "manifest_files": 12,
+  "source_sha256": "bf873ef3d5ec5ced7064b9d827459f9ed5c837f323def67b712b7ac233af8043",
+  "finished_at": "2026-10-26 16:17:29",
+  "report": "reports/module8_test_results.txt",
+  "report_sha256": "dd475ceab61c8a386f2f96709abfe2e80ee70d38834ed7e5796a123c34fc8c15"
+}

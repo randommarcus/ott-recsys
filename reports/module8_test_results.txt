@@ -1,0 +1,109 @@
+TEST RESULTS - single, pre-registered run
+run info: {"mode": "real", "git_commit": "cc202393e615d2a8fa770625f6269b29d30ab1c2", "preregistration_commits": {"reports/module8_protocol.md": "e3d5da3b586c59967141a9fffc8485dc92a44bfa", "reports/module8_predictions.md": "e3d5da3b586c59967141a9fffc8485dc92a44bfa"}, "manifest_files": 12, "source_sha256": "bf873ef3d5ec5ced7064b9d827459f9ed5c837f323def67b712b7ac233af8043", "attempts": 1}
+
+INTERPRETATION RULE (pre-registered in reports/module8_protocol.md):
+  * Headline claims are P1-P5 only. Everything else is secondary or descriptive and is not a finding even if an interval excludes 0.
+  * A failed prediction is reported as it is. No re-running after seeing results; this script runs once.
+  * A later bug fix, if any, is shown as a labelled addition NEXT TO the original numbers, never replacing them.
+
+==============================================================================================================
+HEADLINE RESULTS (P1-P5, pre-registered)
+==============================================================================================================
+P1  M2 ranker (fold-in NCF) - two-tower order, end-to-end NDCG@10:   +0.0245 [+0.0229, +0.0261]  *
+P2  M0 ranker (fold-in NCF) - two-tower order, end-to-end NDCG@10:   +0.0232 [+0.0217, +0.0247]  *
+P3  M2 - M0 (context gain), end-to-end NDCG@10:                      +0.0013 [+0.0004, +0.0021]  *
+P4  two-tower - item-kNN, Recall@200 (full catalog):                 +0.0473 [+0.0441, +0.0505]  *
+P5a SIMULATION, 629 arms (>=5 ratings): UCB c=0.2 - UCB1, likes per 1,000 impressions: +237.1 [+232.2, +242.0]  *
+P5b SIMULATION, 629 arms (>=5 ratings): UCB c=0.2 - Thompson, likes per 1,000 impressions: +31.9 [+27.9, +35.9]  *
+(* = 95% interval excludes 0.)
+
+test users with >= 1 liked item: 19530; mean likes per user 14.7; candidate slots with NCF = NaN: fold-in 12.2%, stale 12.2%
+
+== RE-RANKING THE 230-SLOT LISTS (all test users; SECONDARY): mean [95% CI] ==
+                                                    e2e_ndcg10          e2e_recall20             rr_ndcg10           rr_recall20
+random                                    0.0340 [0.033-0.035]  0.0553 [0.054-0.057]  0.0413 [0.040-0.043]  0.0950 [0.093-0.097]
+pop (popularity order, train+val)         0.0861 [0.084-0.088]  0.1110 [0.109-0.114]  0.1042 [0.102-0.107]  0.1902 [0.187-0.194]
+tt (two-tower's own order)                0.1383 [0.136-0.141]  0.1880 [0.185-0.191]  0.1630 [0.160-0.166]  0.2836 [0.280-0.288]
+NCF order, fold-in (primary)              0.1095 [0.107-0.112]  0.1535 [0.151-0.157]  0.1316 [0.129-0.134]  0.2492 [0.246-0.253]
+NCF order, stale (sensitivity)            0.1020 [0.100-0.104]  0.1430 [0.140-0.146]  0.1227 [0.120-0.125]  0.2338 [0.230-0.238]
+50/50 blend tt+NCF fold-in                0.1410 [0.138-0.143]  0.1888 [0.185-0.192]  0.1668 [0.164-0.169]  0.2944 [0.290-0.299]
+50/50 blend tt+NCF stale                  0.1353 [0.133-0.138]  0.1828 [0.180-0.186]  0.1599 [0.157-0.163]  0.2848 [0.281-0.289]
+M0 ranker, no context (fold-in NCF)       0.1615 [0.159-0.164]  0.2068 [0.203-0.210]  0.1917 [0.189-0.194]  0.3256 [0.322-0.330]
+M1 + hour/day (fold-in)                   0.1597 [0.157-0.162]  0.2054 [0.202-0.209]  0.1893 [0.186-0.192]  0.3216 [0.318-0.326]
+M2 + session (fold-in NCF) [primary]      0.1628 [0.160-0.166]  0.2100 [0.207-0.214]  0.1937 [0.191-0.196]  0.3315 [0.328-0.336]
+M2 with STALE NCF features (sensitivity)  0.1602 [0.157-0.163]  0.2055 [0.202-0.209]  0.1906 [0.188-0.193]  0.3245 [0.321-0.329]
+oracle                                    0.7765 [0.773-0.780]  0.5733 [0.569-0.578]  1.0000 [1.000-1.000]  0.9914 [0.991-0.992]
+
+== SECONDARY paired differences (end-to-end NDCG@10 / Recall@20) ==
+  M2 - M2_stale              NDCG@10 +0.0027 [+0.0019, +0.0034]  *   Recall@20 +0.0045 [+0.0034, +0.0056]  *
+  ncf_foldin - ncf_stale     NDCG@10 +0.0075 [+0.0064, +0.0086]  *   Recall@20 +0.0105 [+0.0088, +0.0122]  *
+  M2 - blend_foldin          NDCG@10 +0.0218 [+0.0200, +0.0235]  *   Recall@20 +0.0211 [+0.0192, +0.0230]  *
+  M2 - pop                   NDCG@10 +0.0768 [+0.0740, +0.0796]  *   Recall@20 +0.0990 [+0.0957, +0.1023]  *
+  M1 - M0                    NDCG@10 -0.0019 [-0.0026, -0.0012]  *   Recall@20 -0.0014 [-0.0023, -0.0006]  *
+  M2 - M1                    NDCG@10 +0.0032 [+0.0022, +0.0041]  *   Recall@20 +0.0046 [+0.0034, +0.0058]  *
+
+== RETRIEVAL OVER THE WHOLE CATALOG (SECONDARY except P4): mean [95% CI] ==
+                         all_recall@10 all_recall@50 all_recall@200 all_ndcg@10 warm_recall@200 cold_recall@200  users
+two-tower (ID-only)             0.1193        0.3174         0.5850      0.1383          0.5856          0.0000  19530
+item-kNN                        0.0993        0.2759         0.5377      0.1258          0.5382          0.0000  19530
+content (centered SBERT)        0.0103        0.0310         0.0783      0.0125          0.0783          0.0221  19530
+popularity                      0.0555        0.1634         0.3541      0.0743          0.3545          0.0000  19530
+
+== COST OF RESERVING SLOTS (M2 main-lane ranking; paired difference vs no reservation) ==
+  2 reserved at the END (19, 20)           NDCG@10 +0.0000 [+0.0000, +0.0000]   Recall@20 -0.0138 [-0.0146, -0.0130]  *
+  3 reserved at the END (18, 19, 20)       NDCG@10 +0.0000 [+0.0000, +0.0000]   Recall@20 -0.0208 [-0.0217, -0.0198]  *
+  2 reserved INSIDE the top 10 (5, 10)     NDCG@10 -0.0175 [-0.0180, -0.0170]  *   Recall@20 -0.0138 [-0.0146, -0.0130]  *
+
+*** SIMULATION, NOT AN A/B TEST. Reward = 'liked given rated' (ignores click probability). ***
+== BANDIT SIMULATION on the global-cutoff TEST window: 2830 new-release arms, 43064 real session starts (2017-03-28 07:53:01 to 2019-11-21 08:36:52); k=2 slots, 365-day shelf, 30 paired seeds; global like rate 0.430; strategies frozen in advance ==
+
+*** SIMULATION, NOT AN A/B TEST. Reward = 'liked given rated' (ignores click probability). ***
+-- 239 arms (>=20 ratings) (266 arms) --
+                                                           likes per 1,000 impressions regret as % of random's     exposure Gini impressions on true top-10% arms   arms never shown
+random                                                             411.3 [409.2-413.5]     100.0 [100.0-100.0]  0.17 [0.17-0.17]                 10.0 [9.8-10.1]%     0.0 [0.0-0.0]%
+greedy                                                             619.9 [608.8-631.1]        38.4 [35.1-41.7]  0.97 [0.97-0.98]                44.3 [38.8-49.9]%  73.6 [70.5-76.7]%
+eps-greedy 0.05                                                    707.8 [702.2-713.5]        12.3 [11.4-13.3]  0.93 [0.93-0.93]                92.3 [91.5-93.1]%    0.0 [-0.0-0.1]%
+UCB1 (c = sqrt 2)                                                  623.8 [619.6-628.1]        37.1 [36.5-37.6]  0.65 [0.65-0.66]                57.5 [56.6-58.4]%     0.0 [0.0-0.0]%
+UCB c = 0.2 (pre-registered)                                       727.1 [720.6-733.6]           6.6 [5.3-7.9]  0.97 [0.97-0.97]                96.3 [95.1-97.4]%     0.0 [0.0-0.0]%
+UCB1-Tuned                                                         722.0 [717.1-726.9]           8.1 [7.8-8.4]  0.91 [0.91-0.92]                89.9 [89.2-90.6]%     0.0 [0.0-0.0]%
+Thompson (Beta)                                                    720.4 [715.4-725.4]           8.6 [8.3-9.0]  0.91 [0.91-0.91]                89.7 [89.1-90.2]%     0.0 [0.0-0.0]%
+UCB c* = 0.35 (Module 7b choice for this set; sensitivity)         732.5 [727.5-737.5]           5.0 [4.6-5.4]  0.95 [0.94-0.95]                94.3 [93.8-94.9]%     0.0 [0.0-0.0]%
+oracle (expected)                                                  748.7 [744.2-753.3]                     NaN               NaN                              NaN                NaN
+
+*** SIMULATION, NOT AN A/B TEST. Reward = 'liked given rated' (ignores click probability). ***
+-- 629 arms (>=5 ratings) (761 arms) --
+                             likes per 1,000 impressions regret as % of random's     exposure Gini impressions on true top-10% arms   arms never shown
+random                               371.6 [369.6-373.5]     100.0 [100.0-100.0]  0.15 [0.15-0.15]                10.2 [10.1-10.3]%    0.0 [-0.0-0.0]%
+greedy                               633.3 [620.6-646.0]        43.4 [40.8-46.0]  0.99 [0.99-0.99]                57.9 [52.2-63.6]%  88.0 [86.8-89.1]%
+eps-greedy 0.05                      769.0 [760.9-777.0]        14.0 [13.0-15.1]  0.95 [0.95-0.95]                94.2 [93.9-94.4]%     1.5 [1.3-1.6]%
+UCB1 (c = sqrt 2)                    570.2 [563.2-577.1]        57.0 [56.1-58.0]  0.53 [0.53-0.54]                46.1 [45.1-47.2]%     0.0 [0.0-0.0]%
+UCB c = 0.2 (pre-registered)         807.3 [798.2-816.3]           5.7 [4.9-6.6]  0.98 [0.98-0.98]                97.3 [97.2-97.4]%     0.0 [0.0-0.0]%
+UCB1-Tuned                           774.5 [766.1-783.0]        12.8 [12.4-13.3]  0.91 [0.90-0.91]                88.3 [87.7-88.9]%     0.0 [0.0-0.0]%
+Thompson (Beta)                      775.3 [766.5-784.2]        12.7 [12.1-13.3]  0.90 [0.89-0.90]                87.8 [87.3-88.4]%     0.0 [0.0-0.0]%
+oracle (expected)                    833.2 [825.6-840.8]                     NaN               NaN                              NaN                NaN
+
+*** SIMULATION, NOT AN A/B TEST. Reward = 'liked given rated' (ignores click probability). ***
+-- 2031 arms (>=1 rating) (2830 arms) --
+                                                          likes per 1,000 impressions regret as % of random's     exposure Gini impressions on true top-10% arms   arms never shown
+random                                                            385.9 [384.9-386.9]     100.0 [100.0-100.0]  0.17 [0.17-0.17]                 10.0 [9.9-10.1]%     0.2 [0.1-0.2]%
+greedy                                                            644.1 [626.9-661.3]        51.8 [48.5-55.2]  1.00 [1.00-1.00]                46.8 [38.4-55.1]%  96.9 [96.6-97.2]%
+eps-greedy 0.05                                                   844.9 [838.4-851.4]        14.3 [13.4-15.2]  0.96 [0.96-0.96]                93.5 [93.3-93.6]%  23.8 [23.4-24.2]%
+UCB1 (c = sqrt 2)                                                 484.2 [483.0-485.5]        81.7 [81.5-81.8]  0.32 [0.31-0.32]                23.9 [23.8-24.1]%     0.0 [0.0-0.0]%
+UCB c = 0.2 (pre-registered)                                      871.6 [867.0-876.2]           9.3 [9.0-9.6]  0.95 [0.95-0.95]                92.4 [92.3-92.5]%     0.0 [0.0-0.0]%
+UCB1-Tuned                                                        747.9 [742.9-752.8]        32.4 [31.9-33.0]  0.79 [0.78-0.79]                72.0 [71.6-72.4]%     0.0 [0.0-0.0]%
+Thompson (Beta)                                                   786.6 [780.0-793.2]        25.2 [24.5-25.9]  0.82 [0.81-0.82]                77.0 [76.3-77.6]%     0.0 [0.0-0.0]%
+UCB c* = 0.1 (Module 7b choice for this set; sensitivity)         880.1 [874.4-885.8]           7.7 [7.1-8.3]  0.96 [0.96-0.96]                94.6 [94.5-94.6]%     0.0 [0.0-0.0]%
+oracle (expected)                                                 921.0 [917.0-924.9]                     NaN               NaN                              NaN                NaN
+
+WHAT COULD MAKE THESE TEST NUMBERS MISLEADING:
+  1. The test window is twice as long as validation (last 20% of each user's history vs 10%): users have about twice as many likes, so Recall@20's denominator roughly doubles
+     and absolute Recall falls while NDCG@10 may rise. ABSOLUTE test numbers are not comparable with validation numbers; only method-to-method comparisons within test are.
+  2. Frozen ID models (two-tower item vectors, NCF) are staler than they were on validation; this favours history-based features over ID features.
+  3. Feature shift: the rankers learned on features built from train-only histories; at test the histories include validation, so score distributions differ.
+  4. Movies first liked during validation are unknown to the frozen ID models (the lane pool covers them; the main lane cannot rank them).
+  5. Rating bursts continue across the validation/test boundary, which favours recency-aware methods and session features.
+  6. The per-user split still lets models learn from other users' later ratings (calendar leakage); the global-cutoff bandit window is cleaner.
+  7. The same users appear in validation and test (the rankers were fitted on their validation labels): this measures the next period for KNOWN users, not new users.
+  8. Many methods x views x metrics were computed in one shot: only P1-P5 are pre-registered; other 'significant' differences may be chance.
+  9. MovieLens ratings are not viewing; hours are UTC; device is simulated and not tested; TMDB release dates drive the release filter.
+ 10. The bandit part is a simulation on thin test-window data with 'liked given rated' rewards and the exploration constant fixed in advance (c=0.2).
