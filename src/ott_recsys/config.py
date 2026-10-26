@@ -45,6 +45,17 @@ class Config:
     user_test_frac: float = 0.20  # last 20% of each user's interactions
     user_val_frac: float = 0.10   # the 10% before that
 
+    # Two-tower retrieval (Module 4)
+    history_len: int = int(os.getenv("OTT_HISTORY_LEN", "20"))  # last N liked items form the user vector
+    embed_dim: int = 64
+    temperature: float = 0.07
+    batch_size: int = 2048
+    learning_rate: float = 1e-3
+    id_dropout: float = 0.25  # share of item-ID embeddings replaced by an "unknown" vector per step
+    max_epochs: int = 15
+    patience: int = 2
+    model_seed: int = 0
+
     @property
     def dataset_dir(self) -> Path:
         return self.raw_dir / self.dataset_name

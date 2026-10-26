@@ -1,0 +1,245 @@
+== CONFIG ==
+dataset_name               ml-25m
+raw_dir                    /home/sudu/ott-recsys/data/raw
+processed_dir              /home/sudu/ott-recsys/data/processed
+sample_users               20000
+sample_seed                42
+min_sample_interactions    20
+mem_limit_gb               7.5
+tune_users                 3000
+positive_threshold         4.0
+session_gap_minutes        30
+burst_window_minutes       10
+burst_min_ratings          30
+train_frac                 0.7
+val_frac                   0.15
+min_user_interactions      10
+user_test_frac             0.2
+user_val_frac              0.1
+history_len                20
+embed_dim                  64
+temperature                0.07
+batch_size                 2048
+learning_rate              0.001
+id_dropout                 0.25
+max_epochs                 15
+patience                   2
+model_seed                 0
+
+item_knn settings (Module 2): {'k': 500, 'shrink': 0.0}
+
+== A. PER-USER VALIDATION (fit on train; test locked); selection metric Recall@200, tie-break Recall@50 ==
+
+--- ALL validation likes: mean [95% CI over users] ---
+                              recall@200             recall@50               ndcg@10             recall@10  users coverage@10
+random              0.0063 [0.006-0.007]  0.0014 [0.001-0.002]  0.0004 [0.000-0.001]  0.0003 [0.000-0.000]  18530      0.1455
+global_pop          0.3814 [0.376-0.387]  0.1804 [0.176-0.184]  0.0555 [0.054-0.057]  0.0633 [0.061-0.066]  18530      0.0046
+content_384c        0.0885 [0.086-0.091]  0.0356 [0.034-0.037]  0.0103 [0.009-0.011]  0.0122 [0.011-0.013]  18530      0.3489
+item_knn            0.5840 [0.579-0.589]  0.3064 [0.302-0.311]  0.0980 [0.096-0.100]  0.1154 [0.112-0.119]  18530      0.0661
+tt_id_n20           0.6500 [0.645-0.655]  0.3774 [0.372-0.383]  0.1230 [0.120-0.126]  0.1496 [0.146-0.153]  18530      0.1280
+tt_content_n20      0.5147 [0.509-0.520]  0.2875 [0.283-0.292]  0.0898 [0.087-0.092]  0.1083 [0.105-0.112]  18530      0.0307
+tt_both_n20         0.6352 [0.630-0.640]  0.3707 [0.366-0.376]  0.1183 [0.116-0.121]  0.1443 [0.141-0.148]  18530      0.1261
+tt_both_n50         0.6334 [0.628-0.638]  0.3657 [0.361-0.371]  0.1155 [0.113-0.118]  0.1415 [0.138-0.145]  18530      0.1253
+tt_both_n20_nologq  0.2628 [0.258-0.268]  0.1451 [0.141-0.149]  0.0399 [0.038-0.042]  0.0544 [0.052-0.057]  18530      0.5707
+
+--- WARM likes (item seen in train): mean [95% CI over users] ---
+                              recall@200             recall@50               ndcg@10             recall@10  users
+random              0.0063 [0.006-0.007]  0.0014 [0.001-0.002]  0.0004 [0.000-0.001]  0.0003 [0.000-0.000]  18526
+global_pop          0.3816 [0.376-0.387]  0.1805 [0.176-0.185]  0.0556 [0.054-0.057]  0.0633 [0.061-0.066]  18526
+content_384c        0.0886 [0.086-0.091]  0.0356 [0.034-0.038]  0.0103 [0.009-0.011]  0.0123 [0.011-0.013]  18526
+item_knn            0.5844 [0.579-0.589]  0.3066 [0.301-0.311]  0.0980 [0.096-0.100]  0.1155 [0.112-0.119]  18526
+tt_id_n20           0.6505 [0.646-0.655]  0.3777 [0.373-0.383]  0.1231 [0.120-0.126]  0.1497 [0.146-0.153]  18526
+tt_content_n20      0.5150 [0.510-0.520]  0.2876 [0.283-0.292]  0.0898 [0.087-0.092]  0.1083 [0.105-0.112]  18526
+tt_both_n20         0.6357 [0.631-0.640]  0.3710 [0.366-0.376]  0.1184 [0.116-0.121]  0.1443 [0.141-0.148]  18526
+tt_both_n50         0.6339 [0.629-0.638]  0.3660 [0.361-0.371]  0.1155 [0.113-0.118]  0.1416 [0.138-0.145]  18526
+tt_both_n20_nologq  0.2629 [0.258-0.268]  0.1451 [0.142-0.149]  0.0399 [0.038-0.042]  0.0544 [0.052-0.057]  18526
+
+--- COLD likes (item never seen in train): mean [95% CI over users] ---
+                              recall@200             recall@50               ndcg@10             recall@10  users
+random              0.0042 [0.000-0.013]  0.0042 [0.000-0.013]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]    236
+global_pop          0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]    236
+content_384c        0.0401 [0.019-0.062]  0.0089 [0.000-0.022]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]    236
+item_knn            0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]    236
+tt_id_n20           0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]    236
+tt_content_n20      0.0158 [0.003-0.032]  0.0045 [0.000-0.014]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]    236
+tt_both_n20         0.0008 [0.000-0.003]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]    236
+tt_both_n50         0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]    236
+tt_both_n20_nologq  0.0210 [0.005-0.038]  0.0072 [0.000-0.019]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]    236
+
+--- paired differences over the same users: mean [95% CI]; * = interval excludes 0 ---
+tt_both_n20 - item_knn                     all_recall@200   +0.0512 [+0.0473, +0.0552]  *
+tt_both_n20 - item_knn                     all_recall@50    +0.0643 [+0.0599, +0.0691]  *
+tt_both_n20 - item_knn                     all_ndcg@10      +0.0203 [+0.0176, +0.0233]  *
+tt_both_n20 - item_knn                     warm_recall@200  +0.0513 [+0.0474, +0.0552]  *
+tt_both_n20 - item_knn                     cold_recall@200  +0.0008 [+0.0000, +0.0025]
+tt_both_n20 - global_pop                   all_recall@200   +0.2538 [+0.2483, +0.2593]  *
+tt_both_n20 - global_pop                   all_recall@50    +0.1904 [+0.1849, +0.1960]  *
+tt_both_n20 - global_pop                   all_ndcg@10      +0.0628 [+0.0598, +0.0659]  *
+tt_both_n20 - global_pop                   warm_recall@200  +0.2541 [+0.2487, +0.2596]  *
+tt_both_n20 - global_pop                   cold_recall@200  +0.0008 [+0.0000, +0.0025]
+tt_both_n20 - content_384c                 all_recall@200   +0.5467 [+0.5416, +0.5520]  *
+tt_both_n20 - content_384c                 all_recall@50    +0.3352 [+0.3301, +0.3409]  *
+tt_both_n20 - content_384c                 all_ndcg@10      +0.1081 [+0.1054, +0.1109]  *
+tt_both_n20 - content_384c                 warm_recall@200  +0.5471 [+0.5419, +0.5521]  *
+tt_both_n20 - content_384c                 cold_recall@200  -0.0392 [-0.0638, -0.0182]  *
+tt_both_n20 - tt_id_n20                    all_recall@200   -0.0148 [-0.0172, -0.0123]  *
+tt_both_n20 - tt_id_n20                    all_recall@50    -0.0067 [-0.0095, -0.0039]  *
+tt_both_n20 - tt_id_n20                    all_ndcg@10      -0.0047 [-0.0065, -0.0029]  *
+tt_both_n20 - tt_id_n20                    warm_recall@200  -0.0148 [-0.0172, -0.0124]  *
+tt_both_n20 - tt_id_n20                    cold_recall@200  +0.0008 [+0.0000, +0.0025]
+tt_both_n20 - tt_content_n20               all_recall@200   +0.1205 [+0.1163, +0.1246]  *
+tt_both_n20 - tt_content_n20               all_recall@50    +0.0833 [+0.0790, +0.0875]  *
+tt_both_n20 - tt_content_n20               all_ndcg@10      +0.0285 [+0.0259, +0.0310]  *
+tt_both_n20 - tt_content_n20               warm_recall@200  +0.1207 [+0.1165, +0.1250]  *
+tt_both_n20 - tt_content_n20               cold_recall@200  -0.0150 [-0.0319, -0.0020]  *
+tt_both_n50 - tt_both_n20                  all_recall@200   -0.0018 [-0.0042, +0.0006]
+tt_both_n50 - tt_both_n20                  all_recall@50    -0.0050 [-0.0076, -0.0023]  *
+tt_both_n50 - tt_both_n20                  all_ndcg@10      -0.0029 [-0.0046, -0.0012]  *
+tt_both_n50 - tt_both_n20                  warm_recall@200  -0.0018 [-0.0041, +0.0006]
+tt_both_n50 - tt_both_n20                  cold_recall@200  -0.0008 [-0.0025, +0.0000]
+tt_both_n20 - tt_both_n20_nologq           all_recall@200   +0.3724 [+0.3673, +0.3774]  *
+tt_both_n20 - tt_both_n20_nologq           all_recall@50    +0.2256 [+0.2214, +0.2303]  *
+tt_both_n20 - tt_both_n20_nologq           all_ndcg@10      +0.0784 [+0.0759, +0.0810]  *
+tt_both_n20 - tt_both_n20_nologq           warm_recall@200  +0.3728 [+0.3678, +0.3778]  *
+tt_both_n20 - tt_both_n20_nologq           cold_recall@200  -0.0201 [-0.0371, -0.0064]  *
+item_knn - global_pop                      all_recall@200   +0.2026 [+0.1980, +0.2074]  *
+item_knn - global_pop                      all_recall@50    +0.1261 [+0.1217, +0.1307]  *
+item_knn - global_pop                      all_ndcg@10      +0.0424 [+0.0398, +0.0449]  *
+item_knn - global_pop                      warm_recall@200  +0.2028 [+0.1983, +0.2076]  *
+item_knn - global_pop                      cold_recall@200  +0.0000 [+0.0000, +0.0000]
+
+--- training runs ---
+a_id_n20             variant=id       N=20 logq=True  split=user   best_epoch= 5 epochs= 7 minutes=4.8 pairs=1092380
+a_content_n20        variant=content  N=20 logq=True  split=user   best_epoch=13 epochs=15 minutes=13.5 pairs=1092380
+a_both_n20           variant=both     N=20 logq=True  split=user   best_epoch= 8 epochs=10 minutes=10.1 pairs=1092380
+a_both_n50           variant=both     N=50 logq=True  split=user   best_epoch= 8 epochs=10 minutes=11.4 pairs=1092380
+a_both_n20_nologq    variant=both     N=20 logq=False split=user   best_epoch= 5 epochs= 7 minutes=7.2 pairs=1092380
+g_id_n20             variant=id       N=20 logq=True  split=global best_epoch= 5 epochs= 5 minutes=3.1 pairs=1064406
+g_content_n20        variant=content  N=20 logq=True  split=global best_epoch=13 epochs=13 minutes=9.4 pairs=1064406
+g_both_n20           variant=both     N=20 logq=True  split=global best_epoch= 8 epochs= 8 minutes=7.5 pairs=1064406
+g_both_n20_nologq    variant=both     N=20 logq=False split=global best_epoch= 5 epochs= 5 minutes=4.6 pairs=1064406
+
+--- a_both_n20 learning curve (validation subsample) ---
+epoch  1 loss 7.488  Recall@200 0.5957  Recall@50 0.3345  NDCG@10 0.1006
+epoch  2 loss 6.978  Recall@200 0.6118  Recall@50 0.3500  NDCG@10 0.1078
+epoch  3 loss 6.854  Recall@200 0.6296  Recall@50 0.3658  NDCG@10 0.1149
+epoch  4 loss 6.789  Recall@200 0.6297  Recall@50 0.3644  NDCG@10 0.1174
+epoch  5 loss 6.744  Recall@200 0.6336  Recall@50 0.3701  NDCG@10 0.1167
+epoch  6 loss 6.709  Recall@200 0.6376  Recall@50 0.3772  NDCG@10 0.1179
+epoch  7 loss 6.682  Recall@200 0.6419  Recall@50 0.3774  NDCG@10 0.1191
+epoch  8 loss 6.663  Recall@200 0.6445  Recall@50 0.3798  NDCG@10 0.1175
+epoch  9 loss 6.641  Recall@200 0.6440  Recall@50 0.3810  NDCG@10 0.1184
+epoch 10 loss 6.623  Recall@200 0.6418  Recall@50 0.3819  NDCG@10 0.1168
+
+--- users without liked items in train (popularity fallback) ---
+all 20000 users: 45 have none; of the 18530 validation users with >= 1 validation like: 6
+
+== B. CANDIDATE UNION: Recall@200 of tt_both_n20 alone, item_knn alone, and 100 from each (deduplicated, filled to 200 from the better list = two-tower) ==
+
+                                          all                            warm                          cold
+tt_both_n20    0.6352 [0.630-0.640] (n=18530)  0.6357 [0.631-0.641] (n=18526)  0.0008 [0.000-0.003] (n=236)
+item_knn       0.5840 [0.579-0.590] (n=18530)  0.5844 [0.579-0.590] (n=18526)  0.0000 [0.000-0.000] (n=236)
+union_100+100  0.6469 [0.642-0.652] (n=18530)  0.6474 [0.643-0.653] (n=18526)  0.0000 [0.000-0.000] (n=236)
+
+--- paired: union vs each list alone ---
+union - tt_both_n20  all_recall@200 +0.0117 [+0.0098, +0.0138]  *
+union - tt_both_n20  warm_recall@200 +0.0118 [+0.0097, +0.0137]  *
+union - tt_both_n20  cold_recall@200 -0.0008 [-0.0025, +0.0000]
+union - item_knn     all_recall@200 +0.0629 [+0.0597, +0.0663]  *
+union - item_knn     warm_recall@200 +0.0630 [+0.0598, +0.0663]  *
+union - item_knn     cold_recall@200 +0.0000 [+0.0000, +0.0000]
+
+== C. NEW-RELEASE EVALUATION (global cutoff; fit only on ratings <= cutoff; two-tower models retrained on that data with the epochs chosen by the per-user runs) ==
+cutoff 2015-02-03 14:11:11, window ends 2017-03-28 07:53:01; primary = TMDB release since cutoff-6mo (3493 movies: 3341 cold, 152 warm); secondary = first rated after cutoff (6864)
+
+--- PRIMARY (all) | full catalog | users=420, items=3493, likes=4632 ---
+                           recall@10             recall@50            recall@200               ndcg@10
+random          0.0000 [0.000-0.000]  0.0004 [0.000-0.001]  0.0049 [0.003-0.008]  0.0000 [0.000-0.000]
+global_pop      0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]
+item_knn        0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0006 [0.000-0.002]  0.0000 [0.000-0.000]
+content_384c    0.0034 [0.001-0.007]  0.0171 [0.011-0.024]  0.0473 [0.036-0.060]  0.0046 [0.002-0.008]
+tt_id           0.0164 [0.010-0.024]  0.0378 [0.027-0.050]  0.0735 [0.058-0.089]  0.0204 [0.014-0.027]
+tt_content      0.0004 [0.000-0.001]  0.0096 [0.006-0.013]  0.0351 [0.027-0.044]  0.0027 [0.001-0.005]
+tt_both         0.0122 [0.007-0.018]  0.0383 [0.029-0.050]  0.0979 [0.081-0.114]  0.0161 [0.011-0.022]
+tt_both_nologq  0.0097 [0.005-0.016]  0.0293 [0.020-0.041]  0.0660 [0.053-0.079]  0.0145 [0.009-0.020]
+
+--- PRIMARY (all) | new-items pool only | users=420, items=3493, likes=4632 ---
+                           recall@10             recall@50            recall@200               ndcg@10
+random          0.0019 [0.001-0.003]  0.0145 [0.010-0.020]  0.0637 [0.052-0.077]  0.0025 [0.001-0.004]
+global_pop      0.2462 [0.220-0.274]  0.3256 [0.298-0.354]  0.3850 [0.355-0.417]  0.2657 [0.243-0.289]
+item_knn        0.1305 [0.108-0.153]  0.2942 [0.266-0.323]  0.3809 [0.351-0.411]  0.1569 [0.137-0.177]
+content_384c    0.0525 [0.041-0.066]  0.1432 [0.123-0.165]  0.3168 [0.290-0.343]  0.0636 [0.052-0.077]
+tt_id           0.2384 [0.211-0.267]  0.3254 [0.296-0.352]  0.3663 [0.338-0.397]  0.2500 [0.228-0.272]
+tt_content      0.0232 [0.017-0.030]  0.0769 [0.063-0.092]  0.1983 [0.177-0.220]  0.0282 [0.022-0.035]
+tt_both         0.0801 [0.063-0.098]  0.1635 [0.143-0.187]  0.3119 [0.286-0.338]  0.1001 [0.084-0.116]
+tt_both_nologq  0.0265 [0.018-0.035]  0.0743 [0.060-0.091]  0.1658 [0.145-0.187]  0.0402 [0.031-0.051]
+
+--- PRIMARY, COLD part (no train ratings) | full catalog | users=360, items=3341, likes=3326 ---
+                           recall@10             recall@50            recall@200               ndcg@10
+random          0.0000 [0.000-0.000]  0.0004 [0.000-0.001]  0.0055 [0.002-0.010]  0.0000 [0.000-0.000]
+global_pop      0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]
+item_knn        0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]
+content_384c    0.0041 [0.001-0.008]  0.0155 [0.008-0.024]  0.0463 [0.034-0.061]  0.0050 [0.002-0.008]
+tt_id           0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]
+tt_content      0.0004 [0.000-0.001]  0.0159 [0.009-0.024]  0.0585 [0.043-0.076]  0.0028 [0.001-0.006]
+tt_both         0.0001 [0.000-0.000]  0.0064 [0.004-0.010]  0.0538 [0.040-0.068]  0.0002 [0.000-0.001]
+tt_both_nologq  0.0004 [0.000-0.001]  0.0041 [0.002-0.007]  0.0229 [0.015-0.032]  0.0008 [0.000-0.002]
+
+--- PRIMARY, COLD part (no train ratings) | new-items pool only | users=360, items=3341, likes=3326 ---
+                           recall@10             recall@50            recall@200               ndcg@10
+random          0.0029 [0.000-0.007]  0.0191 [0.011-0.030]  0.0747 [0.059-0.094]  0.0020 [0.001-0.004]
+global_pop      0.0041 [0.000-0.010]  0.0173 [0.008-0.029]  0.0656 [0.050-0.085]  0.0030 [0.001-0.006]
+item_knn        0.0041 [0.000-0.010]  0.0173 [0.008-0.029]  0.0656 [0.050-0.085]  0.0030 [0.001-0.006]
+content_384c    0.0633 [0.046-0.083]  0.1593 [0.135-0.184]  0.3126 [0.282-0.342]  0.0620 [0.048-0.077]
+tt_id           0.0074 [0.002-0.015]  0.0246 [0.013-0.037]  0.0860 [0.069-0.106]  0.0064 [0.002-0.012]
+tt_content      0.0436 [0.030-0.060]  0.1251 [0.103-0.147]  0.2776 [0.249-0.306]  0.0370 [0.029-0.046]
+tt_both         0.0455 [0.032-0.060]  0.1343 [0.111-0.155]  0.3059 [0.278-0.336]  0.0458 [0.036-0.056]
+tt_both_nologq  0.0066 [0.003-0.011]  0.0337 [0.023-0.046]  0.1259 [0.104-0.148]  0.0076 [0.004-0.011]
+
+--- PRIMARY, WARM part (already rated in train) | full catalog | users=351, items=152, likes=1306 ---
+                           recall@10             recall@50            recall@200               ndcg@10
+random          0.0009 [0.000-0.003]  0.0019 [0.000-0.005]  0.0041 [0.001-0.008]  0.0007 [0.000-0.002]
+global_pop      0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]
+item_knn        0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0028 [0.000-0.009]  0.0000 [0.000-0.000]
+content_384c    0.0020 [0.000-0.006]  0.0191 [0.011-0.029]  0.0522 [0.038-0.067]  0.0009 [0.000-0.002]
+tt_id           0.0457 [0.031-0.063]  0.1137 [0.089-0.142]  0.2048 [0.171-0.237]  0.0341 [0.023-0.046]
+tt_content      0.0014 [0.000-0.004]  0.0031 [0.000-0.008]  0.0095 [0.005-0.016]  0.0009 [0.000-0.003]
+tt_both         0.0350 [0.023-0.049]  0.1034 [0.077-0.131]  0.1770 [0.147-0.210]  0.0278 [0.018-0.039]
+tt_both_nologq  0.0279 [0.016-0.042]  0.0799 [0.060-0.102]  0.1625 [0.134-0.192]  0.0232 [0.014-0.035]
+
+--- PRIMARY, WARM part (already rated in train) | new-items pool only | users=351, items=152, likes=1306 ---
+                           recall@10             recall@50            recall@200               ndcg@10
+random          0.0639 [0.049-0.080]  0.3496 [0.312-0.386]  1.0000 [1.000-1.000]  0.0428 [0.033-0.054]
+global_pop      0.5974 [0.561-0.635]  0.8323 [0.805-0.859]  1.0000 [1.000-1.000]  0.4512 [0.420-0.480]
+item_knn        0.3048 [0.268-0.340]  0.7555 [0.725-0.786]  1.0000 [1.000-1.000]  0.2622 [0.235-0.290]
+content_384c    0.2350 [0.204-0.266]  0.6717 [0.639-0.707]  1.0000 [1.000-1.000]  0.1696 [0.148-0.193]
+tt_id           0.5728 [0.535-0.609]  0.8216 [0.794-0.849]  1.0000 [1.000-1.000]  0.4232 [0.396-0.452]
+tt_content      0.0792 [0.062-0.098]  0.5838 [0.548-0.619]  1.0000 [1.000-1.000]  0.0509 [0.040-0.063]
+tt_both         0.3441 [0.306-0.385]  0.6554 [0.615-0.695]  1.0000 [1.000-1.000]  0.2554 [0.227-0.284]
+tt_both_nologq  0.1557 [0.132-0.184]  0.5363 [0.493-0.577]  1.0000 [1.000-1.000]  0.1153 [0.094-0.136]
+
+--- SECONDARY (first rated after cutoff) | full catalog | users=378, items=6864, likes=4031 ---
+                           recall@10             recall@50            recall@200               ndcg@10
+random          0.0004 [0.000-0.001]  0.0025 [0.001-0.006]  0.0076 [0.004-0.013]  0.0006 [0.000-0.001]
+global_pop      0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]
+item_knn        0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]
+content_384c    0.0037 [0.002-0.006]  0.0141 [0.008-0.022]  0.0439 [0.032-0.058]  0.0051 [0.003-0.008]
+tt_id           0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]  0.0000 [0.000-0.000]
+tt_content      0.0003 [0.000-0.001]  0.0141 [0.008-0.022]  0.0530 [0.038-0.069]  0.0027 [0.001-0.006]
+tt_both         0.0001 [0.000-0.000]  0.0055 [0.003-0.009]  0.0512 [0.038-0.067]  0.0002 [0.000-0.001]
+tt_both_nologq  0.0004 [0.000-0.001]  0.0037 [0.002-0.007]  0.0213 [0.013-0.031]  0.0008 [0.000-0.002]
+
+--- SECONDARY (first rated after cutoff) | new-items pool only | users=378, items=6864, likes=4031 ---
+                           recall@10             recall@50            recall@200               ndcg@10
+random          0.0034 [0.001-0.007]  0.0094 [0.005-0.015]  0.0339 [0.023-0.046]  0.0031 [0.001-0.005]
+global_pop      0.0013 [0.000-0.002]  0.0047 [0.003-0.007]  0.0305 [0.020-0.044]  0.0028 [0.001-0.005]
+item_knn        0.0013 [0.000-0.002]  0.0047 [0.003-0.007]  0.0305 [0.020-0.044]  0.0028 [0.001-0.005]
+content_384c    0.0157 [0.009-0.023]  0.0678 [0.051-0.086]  0.1668 [0.143-0.191]  0.0206 [0.014-0.028]
+tt_id           0.0024 [0.001-0.004]  0.0067 [0.004-0.009]  0.0358 [0.026-0.049]  0.0039 [0.002-0.006]
+tt_content      0.0222 [0.013-0.033]  0.0710 [0.055-0.090]  0.1798 [0.153-0.205]  0.0217 [0.016-0.029]
+tt_both         0.0265 [0.017-0.038]  0.0855 [0.068-0.104]  0.2138 [0.188-0.241]  0.0255 [0.019-0.033]
+tt_both_nologq  0.0034 [0.001-0.006]  0.0204 [0.013-0.029]  0.0948 [0.074-0.116]  0.0057 [0.003-0.009]
+
+== D. MILVUS-READY EXPORT (tt_both_n20) -> /home/sudu/ott-recsys/data/processed/ml-25m_u20000_s42/two_tower/export ==
+{'items': 33392, 'dim': 64, 'users': 19955, 'cold_items': 16942}
+files: item_vectors.parquet (item_id INT64 pk, vector FLOAT_VECTOR 64 + metadata), item_vectors.npy, milvus_schema.json, user_tower.npz, user_vectors.parquet

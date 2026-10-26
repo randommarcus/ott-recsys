@@ -47,32 +47,18 @@ def rank_top(scores: np.ndarray, seen: list[np.ndarray], k_max: int) -> np.ndarr
     return out
 
 
-def evaluate(model, fit_df: pd.DataFrame, eval_df: pd.DataFrame, catalog: np.ndarray,
-             query_hours: pd.Series | None = None, ks=KS, ndcg_k: int = 10,
-             cov_k: int = 10, chunk: int = 500, candidate_items: np.ndarray | None = None) -> EvalResult:
+def _truth_and_warm(fit_df, eval_df, catalog):
     cat_index = pd.Index(catalog)
     truth_df = eval_df[eval_df["label"] == 1]
     users = np.sort(truth_df["user_id"].unique())
-    truth = {u: cat_index.get_indexer(g["item_id"].to_numpy())
-             for u, g in truth_df.groupby("user_id")}
+    truth = {u: cat_index.get_indexer(g["item_id"].to_numpy()) for u, g in truth_df.groupby("user_id")}
     assert all((t >= 0).all() for t in truth.values()), "truth item missing from catalog"
     warm_items = set(cat_index.get_indexer(fit_df["item_id"].unique()))
-    seen_map = {u: cat_index.get_indexer(g["item_id"].to_numpy()) for u, g in fit_df.groupby("user_id")}
-    seen = [seen_map.get(u, np.empty(0, dtype=np.int64)) for u in users]
-    if candidate_items is not None:  # rank only this pool: everything else is excluded like seen items
-        outside = np.setdiff1d(np.arange(len(catalog)), cat_index.get_indexer(candidate_items))
-        seen = [np.union1d(x, outside) for x in seen]
+    return users, truth, warm_items
 
-    hours = None if query_hours is None else query_hours.reindex(users).to_numpy()
-    k_max = min(max(max(ks), ndcg_k, cov_k), len(catalog))
-    top = np.empty((len(users), k_max), dtype=np.int64)
-    for a in range(0, len(users), chunk):  # score in chunks: users x items may not fit in RAM
-        b = min(a + chunk, len(users))
-        scores = model.score(users[a:b], None if hours is None else hours[a:b])
-        assert scores.shape == (b - a, len(catalog)), "score matrix has wrong shape"
-        top[a:b] = rank_top(scores, seen[a:b], k_max)
-        del scores
 
+def _metrics_from_top(top, users, truth, warm_items, ks, ndcg_k) -> pd.DataFrame:
+    """Per-user Recall@k and NDCG for the all/warm/cold views from ranked lists."""
     discount = 1.0 / np.log2(np.arange(2, ndcg_k + 2))
     cols = {f"{v}_{m}": np.full(len(users), np.nan)
             for v in VIEWS for m in [f"recall@{k}" for k in ks] + [f"ndcg@{ndcg_k}"]}
@@ -89,9 +75,60 @@ def evaluate(model, fit_df: pd.DataFrame, eval_df: pd.DataFrame, catalog: np.nda
             gains = np.array([1.0 if x in t else 0.0 for x in top[r, :ndcg_k]])
             idcg = discount[: min(len(t), ndcg_k)].sum()
             cols[f"{v}_ndcg@{ndcg_k}"][r] = float((gains * discount).sum() / idcg)
+    return pd.DataFrame(cols, index=users)
 
+
+def evaluate_lists(top: np.ndarray, fit_df, eval_df, catalog, ks=KS, ndcg_k: int = 10) -> pd.DataFrame:
+    """Same metrics as evaluate(), for ready-made ranked lists (rows follow the sorted
+    users who have >= 1 liked item in eval_df). Used for candidate-union evaluation."""
+    users, truth, warm = _truth_and_warm(fit_df, eval_df, catalog)
+    assert len(top) == len(users), "ranked lists do not match the evaluation users"
+    return _metrics_from_top(top, users, truth, warm, ks, ndcg_k)
+
+
+def union_top(a: np.ndarray, b: np.ndarray, n_each: int, k_total: int, fill: np.ndarray) -> np.ndarray:
+    """Candidate union: first n_each of a and of b, deduplicated, interleaved a,b,a,b...;
+    if short of k_total (overlap), continue down `fill` (the better list) until k_total."""
+    out = np.empty((len(a), k_total), dtype=a.dtype)
+    for r in range(len(a)):
+        seen, row = set(), []
+        for x, y in zip(a[r, :n_each], b[r, :n_each]):
+            for z in (x, y):
+                if z not in seen:
+                    seen.add(z); row.append(z)
+        for z in fill[r]:
+            if len(row) >= k_total:
+                break
+            if z not in seen:
+                seen.add(z); row.append(z)
+        out[r] = row[:k_total]
+    return out
+
+
+def evaluate(model, fit_df: pd.DataFrame, eval_df: pd.DataFrame, catalog: np.ndarray,
+             query_hours: pd.Series | None = None, ks=KS, ndcg_k: int = 10,
+             cov_k: int = 10, chunk: int = 500, candidate_items: np.ndarray | None = None) -> EvalResult:
+    cat_index = pd.Index(catalog)
+    users, truth, warm_items = _truth_and_warm(fit_df, eval_df, catalog)
+    seen_map = {u: cat_index.get_indexer(g["item_id"].to_numpy()) for u, g in fit_df.groupby("user_id")}
+    seen = [seen_map.get(u, np.empty(0, dtype=np.int64)) for u in users]
+    if candidate_items is not None:  # rank only this pool: everything else is excluded like seen items
+        outside = np.setdiff1d(np.arange(len(catalog)), cat_index.get_indexer(candidate_items))
+        seen = [np.union1d(x, outside) for x in seen]
+
+    hours = None if query_hours is None else query_hours.reindex(users).to_numpy()
+    k_max = min(max(max(ks), ndcg_k, cov_k), len(catalog))
+    top = np.empty((len(users), k_max), dtype=np.int64)
+    for a in range(0, len(users), chunk):  # score in chunks: users x items may not fit in RAM
+        b = min(a + chunk, len(users))
+        scores = model.score(users[a:b], None if hours is None else hours[a:b])
+        assert scores.shape == (b - a, len(catalog)), "score matrix has wrong shape"
+        top[a:b] = rank_top(scores, seen[a:b], k_max)
+        del scores
+
+    per_user = _metrics_from_top(top, users, truth, warm_items, ks, ndcg_k)
     coverage = len(np.unique(top[:, :cov_k])) / len(catalog)
-    return EvalResult(pd.DataFrame(cols, index=users), coverage, top, users, catalog)
+    return EvalResult(per_user, coverage, top, users, catalog)
 
 
 def summarize(per_user: pd.DataFrame, coverage: float, n_boot: int = 1000, seed: int = 0) -> pd.DataFrame:

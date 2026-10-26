@@ -104,6 +104,13 @@ def load_embeddings(path: Path, catalog: np.ndarray, which: str = "emb384") -> n
     return z[which][pos]
 
 
+def center_embeddings(emb: np.ndarray) -> np.ndarray:
+    """Remove the mean vector, then re-normalise rows. Raw SBERT vectors share a big
+    common component; without this, averaged user profiles point at 'generic' items."""
+    c = emb - emb.mean(axis=0, keepdims=True)
+    return (c / np.maximum(np.linalg.norm(c, axis=1, keepdims=True), 1e-12)).astype(np.float32)
+
+
 def neighbours(emb: np.ndarray, ids: np.ndarray, titles: dict, query_id: int, n: int = 5) -> list[str]:
     i = int(np.where(ids == query_id)[0][0])
     sims = emb @ emb[i]
