@@ -1,0 +1,41 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "WriteOwnLogsOnly",
+      "Effect": "Allow",
+      "Action": ["logs:CreateLogStream", "logs:PutLogEvents"],
+      "Resource": [
+        "arn:aws:logs:eu-central-1:ACCOUNT_ID:log-group:/aws/lambda/ott-recsys-serve:*",
+        "arn:aws:logs:ap-south-1:ACCOUNT_ID:log-group:/aws/lambda/ott-recsys-serve:*"
+      ]
+    },
+    {
+      "Sid": "ReadUserRecords",
+      "Effect": "Allow",
+      "Action": ["dynamodb:GetItem", "dynamodb:BatchGetItem"],
+      "Resource": [
+        "arn:aws:dynamodb:eu-central-1:ACCOUNT_ID:table/ott-users",
+        "arn:aws:dynamodb:ap-south-1:ACCOUNT_ID:table/ott-users"
+      ]
+    },
+    {
+      "Sid": "ReadAndCountBanditArms",
+      "Effect": "Allow",
+      "Action": ["dynamodb:GetItem", "dynamodb:BatchGetItem", "dynamodb:UpdateItem"],
+      "Resource": [
+        "arn:aws:dynamodb:eu-central-1:ACCOUNT_ID:table/ott-bandit",
+        "arn:aws:dynamodb:ap-south-1:ACCOUNT_ID:table/ott-bandit"
+      ]
+    },
+    {
+      "Sid": "ReadTheOneZillizParameter",
+      "Effect": "Allow",
+      "Action": "ssm:GetParameter",
+      "Resource": [
+        "arn:aws:ssm:eu-central-1:ACCOUNT_ID:parameter/ott/zilliz",
+        "arn:aws:ssm:ap-south-1:ACCOUNT_ID:parameter/ott/zilliz"
+      ]
+    }
+  ]
+}
