@@ -110,7 +110,7 @@ class App:
         t4 = time.perf_counter()
         lane, rel, c = f["_lane"], f["_rel"], f["_cand"]
         main_rows = np.flatnonzero(~lane)
-        main_rows = main_rows[np.argsort(-score[main_rows], kind="stable")][:N_SLOTS - N_BANDIT]
+        main_rows = main_rows[np.argsort(-score[main_rows], kind="stable")]
         eligible = np.flatnonzero(lane & ~np.isnan(rel) & (rel > t_req - SHELF_S))  # on the 365-day shelf (released <= t_req already)
         picks, arm_n, arm_s = np.empty(0, int), np.empty(0), np.empty(0)
         if len(eligible):
@@ -121,6 +121,7 @@ class App:
             if q["record"]:
                 self.bandit.add_impressions(arm_ids[picks])
         T["bandit"] = time.perf_counter() - t4
+        main_rows = main_rows[:N_SLOTS - len(picks)]  # no eligible new release -> all 20 slots go to the ranker
 
         titles = self.b.titles
         items = []

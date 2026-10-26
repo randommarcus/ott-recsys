@@ -80,6 +80,17 @@ def test_list_layout_and_rules(world):
 
 
 @real
+def test_user_without_eligible_new_releases_gets_twenty_ranker_slots(world):
+    app, _ = make_app(world)
+    for i in range(400):
+        s, r = post(app, "/recommend", {"user_id": uid(world, i), "record_impressions": False})
+        if r["diagnostics"]["bandit_arms_eligible"] == 0 and r["diagnostics"]["main_eligible"] >= 20:
+            assert len(r["items"]) == 20 and all(x["source"] == "ranker" for x in r["items"])
+            return
+    pytest.fail("no sampled user without eligible new releases")
+
+
+@real
 def test_bandit_counts_and_exploration(world):
     app, store = make_app(world)
     i, _ = find_user_with_arms(world, app)

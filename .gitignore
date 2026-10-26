@@ -21,3 +21,6 @@ models/*
 .DS_Store
 .vscode/
 logs/
+
+# Module 9 build output (Lambda zip, wheels)
+build/
