@@ -124,6 +124,14 @@ def test_execution_role_can_only_reach_its_own_things():
     assert users_actions == {"dynamodb:GetItem", "dynamodb:BatchGetItem"}
 
 
+def test_console_role_extra_statement_is_only_the_pinned_pass_role():
+    p = _load("console-role-passrole.json")
+    assert len(p["Statement"]) == 1
+    st = p["Statement"][0]
+    assert st["Effect"] == "Allow" and st["Action"] == "iam:PassRole" and st["Resource"] == ROLE_ARN
+    assert st["Condition"]["StringEquals"]["iam:PassedToService"] == "lambda.amazonaws.com"
+
+
 def test_trust_policy_only_lets_lambda_assume_the_role():
     t = _load("lambda-trust-policy.json")
     assert len(t["Statement"]) == 1
