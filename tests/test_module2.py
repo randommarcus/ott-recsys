@@ -170,7 +170,7 @@ def test_tuning_code_never_references_test_split():
              scripts / "run_module4.py", scripts / "run_module4_all.py", scripts / "run_module4b.py", scripts / "build_candidates.py", scripts / "train_ncf.py",
              scripts / "run_module5.py", scripts / "run_module5_all.py", scripts / "build_ranker_features.py",
              scripts / "run_module6.py", scripts / "run_module6_all.py", scripts / "run_module7.py",
-             scripts / "run_module7_ranker.py", scripts / "run_module7_all.py", scripts / "run_module7b.py", scripts / "prepare_test.py"]
+             scripts / "run_module7_ranker.py", scripts / "run_module7_all.py", scripts / "run_module7b.py", scripts / "prepare_test.py", scripts / "check_zilliz.py"]
     for f in files:
         tree = ast.parse(f.read_text())
         for node in ast.walk(tree):
