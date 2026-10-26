@@ -8,7 +8,14 @@ Prints ONLY a label and ALLOWED / DENIED / ERROR(code) per action: no account id
     python scripts/aws_permtest.py --region ap-south-1
 
 Needs the policy in infra/iam/ott-dev-policy.json on the profile, the role ott-recsys-lambda-role, and a profile created by `aws configure --profile ott-dev`.
-If a run is interrupted, delete leftovers with scripts/aws_teardown.py. Expected cost: $0.00 (seconds of tiny resources)."""
+If a run is interrupted, delete leftovers with scripts/aws_teardown.py. Expected cost: $0.00 (seconds of tiny resources).
+
+AWS CloudShell: this file is standalone (standard library + boto3 only). Upload just this file and run
+
+    python3 aws_permtest.py --region eu-central-1 --session-credentials
+
+--session-credentials uses boto3's default credential chain (in CloudShell: the console identity's temporary credentials) and no named profile. The
+"EC2 must be denied" check is skipped in that mode, because that deny belongs to the ott-dev policy, not to the console role. Results go to ./logs/."""
 import argparse
 import io
 import json
@@ -19,7 +26,6 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
 REGIONS = ("eu-central-1", "ap-south-1")
 ROLE_NAME = "ott-recsys-lambda-role"
 FN, TABLE, LOG_GROUP, PARAM = "ott-permtest", "ott-permtest", "/aws/lambda/ott-permtest", "/ott/permtest"
@@ -61,8 +67,9 @@ def hello_zip() -> bytes:
 
 
 class Run:
-    def __init__(self, region: str, session, signed_call=signed_post, sleep=time.sleep):
+    def __init__(self, region: str, session, signed_call=signed_post, sleep=time.sleep, session_credentials: bool = False, log_dir="logs"):
         self.region, self.s, self.signed_call, self.sleep = region, session, signed_call, sleep
+        self.session_credentials, self.log_dir = session_credentials, Path(log_dir)
         self.results, self.cleanups, self.state = [], [], {}
 
     def client(self, name):
@@ -110,7 +117,8 @@ class Run:
     # ------------------------------------------------------------------ the steps
     def go(self) -> int:
         print(f"Permission test in {self.region} (profile resources only: ott-permtest*; nothing sensitive is printed)", flush=True)
-        sts, logs, ssm, ddb, lam, ec2 = (self.client(x) for x in ("sts", "logs", "ssm", "dynamodb", "lambda", "ec2"))
+        sts, logs, ssm, ddb, lam = (self.client(x) for x in ("sts", "logs", "ssm", "dynamodb", "lambda"))
+        ec2 = None if self.session_credentials else self.client("ec2")
         acct = {}
 
         def identity():
@@ -157,14 +165,18 @@ class Run:
             self.step("lambda function URL: signed request", call_url, needs="lambda create_function_url_config (AWS_IAM)")
             self.step("lambda put_function_concurrency (reserved 1)", lambda: lam.put_function_concurrency(FunctionName=FN, ReservedConcurrentExecutions=1),
                       needs="lambda wait until active")
-            self.step("ec2 describe_instances (must be denied by design)", lambda: ec2.describe_instances(MaxResults=5), expect_denied=True)
+            if self.session_credentials:  # that deny belongs to the ott-dev policy, not to the console role, so there is nothing to check
+                self.results.append(("ec2 describe_instances (must be denied by design)", "SKIPPED (session credentials)"))
+                print(f"  {'ec2 describe_instances (must be denied by design)':<56s} SKIPPED (session credentials: the deny belongs to the ott-dev policy)", flush=True)
+            else:
+                self.step("ec2 describe_instances (must be denied by design)", lambda: ec2.describe_instances(MaxResults=5), expect_denied=True)
         finally:
             print("Cleanup (always runs):", flush=True)
             removed, total = self.run_cleanup()
         counts = {k: sum(1 for _, s in self.results if s.startswith(k)) for k in ("ALLOWED", "DENIED", "ERROR", "SKIPPED")}
         print(f"Summary for {self.region}: {counts['ALLOWED']} allowed, {counts['DENIED']} denied, {counts['ERROR']} errors, {counts['SKIPPED']} skipped; cleanup {removed}/{total}", flush=True)
-        log = ROOT / "logs" / f"permtest_{self.region}.json"
-        log.parent.mkdir(exist_ok=True)
+        log = self.log_dir / f"permtest_{self.region}.json"
+        log.parent.mkdir(parents=True, exist_ok=True)
         log.write_text(json.dumps({"region": self.region, "results": dict(self.results), "cleanup": f"{removed}/{total}"}, indent=1))
         return 0 if removed == total and counts["ERROR"] == 0 else 1
 
@@ -172,17 +184,25 @@ class Run:
 def main(argv=None, session_factory=None, signed_call=signed_post, sleep=time.sleep) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--region", required=True, choices=REGIONS)
-    ap.add_argument("--profile", default="ott-dev")
+    ap.add_argument("--profile", default=None, help="named AWS profile (default ott-dev); not allowed together with --session-credentials")
+    ap.add_argument("--session-credentials", action="store_true",
+                    help="use boto3's default credential chain (e.g. the AWS CloudShell console identity); no profile; skips the EC2 must-be-denied check")
+    ap.add_argument("--log-dir", default="logs", help="where the result file is written (relative to the current folder)")
     args = ap.parse_args(argv)
+    if args.session_credentials and args.profile:
+        ap.error("--session-credentials and --profile cannot be used together")
+    profile = None if args.session_credentials else (args.profile or "ott-dev")
     if session_factory is None:
         import boto3
-        session_factory = lambda profile, region: boto3.Session(profile_name=profile, region_name=region)
+        session_factory = lambda profile, region: boto3.Session(profile_name=profile, region_name=region)  # profile None = default chain
     try:
-        session = session_factory(args.profile, args.region)
+        session = session_factory(profile, args.region)
     except Exception as exc:
-        print(f"could not open the profile {args.profile!r}: {type(exc).__name__} (create it with: aws configure --profile {args.profile})")
+        hint = "check that this shell has AWS credentials" if profile is None else f"create it with: aws configure --profile {profile}"
+        print(f"could not open the {'default credentials' if profile is None else 'profile ' + repr(profile)}: {type(exc).__name__} ({hint})")
         return 2
-    return Run(args.region, session, signed_call, sleep).go()
+    print("credentials: " + ("default chain (no profile)" if profile is None else f"profile {profile}"), flush=True)
+    return Run(args.region, session, signed_call, sleep, args.session_credentials, args.log_dir).go()
 
 
 if __name__ == "__main__":

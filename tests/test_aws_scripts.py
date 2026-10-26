@@ -22,7 +22,7 @@ def no_leaks(text):
 
 # ---------------------------------------------------------------------------------------------------- aws_permtest
 def test_permtest_all_allowed_cleans_up_and_prints_only_words(capsys, tmp_path, monkeypatch):
-    monkeypatch.setattr(permtest, "ROOT", tmp_path)
+    monkeypatch.chdir(tmp_path)
     w = World()
     assert run_permtest(w) == 0
     out = capsys.readouterr().out
@@ -39,7 +39,7 @@ def test_permtest_all_allowed_cleans_up_and_prints_only_words(capsys, tmp_path, 
 
 
 def test_service_control_policy_denial_is_named_and_dependents_are_skipped(capsys, tmp_path, monkeypatch):
-    monkeypatch.setattr(permtest, "ROOT", tmp_path)
+    monkeypatch.chdir(tmp_path)
     w = World(deny={("lambda", "create_function"): ("AccessDeniedException", "with an explicit deny in a service control policy: arn:aws:organizations::123456789012:policy/x")})
     assert run_permtest(w) == 0
     out = capsys.readouterr().out
@@ -59,7 +59,7 @@ def test_plain_and_identity_denials_are_distinguished():
 
 
 def test_cleanup_runs_even_if_the_run_is_interrupted(tmp_path, monkeypatch, capsys):
-    monkeypatch.setattr(permtest, "ROOT", tmp_path)
+    monkeypatch.chdir(tmp_path)
     w = World()
     real = w.session
 
@@ -89,7 +89,7 @@ def test_cleanup_runs_even_if_the_run_is_interrupted(tmp_path, monkeypatch, caps
 
 
 def test_only_ott_names_are_ever_used_and_the_role_is_the_one_role(tmp_path, monkeypatch):
-    monkeypatch.setattr(permtest, "ROOT", tmp_path)
+    monkeypatch.chdir(tmp_path)
     w = World()
     run_permtest(w)
     names = []
@@ -106,7 +106,7 @@ def test_only_ott_names_are_ever_used_and_the_role_is_the_one_role(tmp_path, mon
 
 
 def test_function_url_retries_a_fresh_403_then_reports_the_word(capsys, tmp_path, monkeypatch):
-    monkeypatch.setattr(permtest, "ROOT", tmp_path)
+    monkeypatch.chdir(tmp_path)
     seen = []
     run_permtest(World(), signed=lambda url, region, creds: seen.append(url) or 403)
     out = capsys.readouterr().out
@@ -116,7 +116,7 @@ def test_function_url_retries_a_fresh_403_then_reports_the_word(capsys, tmp_path
 
 
 def test_an_allowed_ec2_call_is_flagged_as_a_policy_mistake(capsys, tmp_path, monkeypatch):
-    monkeypatch.setattr(permtest, "ROOT", tmp_path)
+    monkeypatch.chdir(tmp_path)
     w = World()
     w.deny.pop(("ec2", "describe_instances"))
     run_permtest(w)

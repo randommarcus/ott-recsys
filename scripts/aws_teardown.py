@@ -7,12 +7,15 @@
 Looks only at exact names (it never lists accounts; the policy's names-only list calls are for a manual leftovers check): function ott-recsys-serve and ott-permtest (and their Function URLs), log groups
 /aws/lambda/ott-recsys-serve and /aws/lambda/ott-permtest, DynamoDB tables ott-users, ott-bandit, ott-permtest, SSM parameters /ott/zilliz and /ott/permtest.
 NOT touched: the IAM role, the ott-dev user and its key, the budget alert, and the Zilliz collections (see the manual checklist in reports/module9_plan.md).
-Prints names and exists / absent / unknown(code) only: no account id, ARN or request id."""
+Prints names and exists / absent / unknown(code) only: no account id, ARN or request id.
+
+AWS CloudShell: this file is standalone (standard library + boto3 only). Upload just this file and run
+    python3 aws_teardown.py --session-credentials                  # report
+    python3 aws_teardown.py --session-credentials --confirm DELETE-OTT
+--session-credentials uses boto3's default credential chain (in CloudShell: the console identity's temporary credentials) and no named profile."""
 import argparse
 import sys
-from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
 REGIONS = ("eu-central-1", "ap-south-1")
 FUNCTIONS = ("ott-recsys-serve", "ott-permtest")
 LOG_GROUPS = ("/aws/lambda/ott-recsys-serve", "/aws/lambda/ott-permtest")
@@ -71,24 +74,30 @@ ORDER = {"function URL": 0, "lambda function": 1, "log group": 2, "dynamodb tabl
 def main(argv=None, session_factory=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--region", choices=REGIONS + ("all",), default="all")
-    ap.add_argument("--profile", default="ott-dev")
+    ap.add_argument("--profile", default=None, help="named AWS profile (default ott-dev); not allowed together with --session-credentials")
+    ap.add_argument("--session-credentials", action="store_true",
+                    help="use boto3's default credential chain (e.g. the AWS CloudShell console identity); no profile")
     ap.add_argument("--confirm", default=None, help=f"type {CONFIRM_WORD} to delete; without it nothing is changed")
     args = ap.parse_args(argv)
     if args.confirm is not None and args.confirm != CONFIRM_WORD:
         print(f"refused: --confirm must be exactly {CONFIRM_WORD}")
         return 2
     delete = args.confirm == CONFIRM_WORD
+    if args.session_credentials and args.profile:
+        ap.error("--session-credentials and --profile cannot be used together")
+    profile = None if args.session_credentials else (args.profile or "ott-dev")
     if session_factory is None:
         import boto3
         session_factory = lambda profile, region: boto3.Session(profile_name=profile, region_name=region)
     regions = REGIONS if args.region == "all" else (args.region,)
     remaining_total = unverified_total = 0
     print("DELETE MODE" if delete else "DRY RUN (nothing is changed; add --confirm DELETE-OTT to delete)")
+    print("credentials: " + ("default chain (no profile)" if profile is None else f"profile {profile}"))
     for region in regions:
         try:
-            td = Teardown(region, session_factory(args.profile, region))
+            td = Teardown(region, session_factory(profile, region))
         except Exception as exc:
-            print(f"{region}: could not open the profile {args.profile!r}: {type(exc).__name__}")
+            print(f"{region}: could not open the {'default credentials' if profile is None else 'profile ' + repr(profile)}: {type(exc).__name__}")
             return 2
         print(f"== {region} ==")
         inv = td.inventory()
