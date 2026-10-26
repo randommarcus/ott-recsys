@@ -1,0 +1,15 @@
+{
+  "status": "done",
+  "test_metrics_emitted": true,
+  "attempts": 1,
+  "first_started_at": "2026-10-26 09:01:32",
+  "last_started_at": "2026-10-26 09:01:32",
+  "mode": "rehearsal",
+  "git_commit": "e3d5da3b586c59967141a9fffc8485dc92a44bfa",
+  "preregistration_commits": {},
+  "manifest_files": 12,
+  "source_sha256": "bf873ef3d5ec5ced7064b9d827459f9ed5c837f323def67b712b7ac233af8043",
+  "finished_at": "2026-10-26 09:08:45",
+  "report": "reports/rehearsal/module8_rehearsal_report.txt",
+  "report_sha256": "445c0c83c7820b5f2e2c98423edbf81c2549e08c7c9ab135741a615e3025271e"
+}

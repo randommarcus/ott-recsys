@@ -210,3 +210,55 @@ def train(data: dict, neg_k: int = 4, pop_frac: float = 0.5, batch: int = 4096, 
     if best_w is not None:
         model.set_weights(best_w)
     return NCFScorer(model_arrays(model), data["users"], data["items"]), history, (best or {}).get("epoch", len(history))
+
+
+def fold_in_users(frozen: "NCFScorer", pos_user_ids, pos_item_ids, neg_k: int = 4, pop_frac: float = 0.5, epochs: int = 3,
+                  lr: float = 1e-3, batch: int = 4096, seed: int = 0, log=print):
+    """FOLD-IN: re-optimise ONLY the user embeddings on the given positives, with every item embedding and the whole MLP frozen
+    (asserted at the end). Used before the test run so that likes made during validation reach NCF without retraining it.
+    Positives on items the frozen model has no embedding for are dropped (NCF cannot score them). Users the frozen model has no
+    embedding for get a seeded random start. Returns a new NCFScorer over the folded-in users and the per-epoch history."""
+    import tensorflow as tf
+    tf.keras.utils.set_random_seed(seed)
+    a = frozen.a
+    ii_all = frozen._i.get_indexer(np.asarray(pos_item_ids))
+    keep = ii_all >= 0
+    pu_raw, ii = np.asarray(pos_user_ids)[keep], ii_all[keep].astype(np.int32)
+    users_new = np.sort(np.unique(pu_raw))
+    ui = pd.Index(users_new).get_indexer(pu_raw).astype(np.int32)
+    nu, ni = len(users_new), len(frozen.item_ids)
+    rng = np.random.default_rng(seed)
+    ug0 = rng.normal(0.0, 0.05, (nu, a["ug"].shape[1])).astype(np.float32)
+    um0 = rng.normal(0.0, 0.05, (nu, a["um"].shape[1])).astype(np.float32)
+    old = frozen._u.get_indexer(users_new)
+    ug0[old >= 0], um0[old >= 0] = a["ug"][old[old >= 0]], a["um"][old[old >= 0]]  # known users start from their trained vectors
+    model = make_model(nu, ni)
+    model.ug.set_weights([ug0]); model.um.set_weights([um0])
+    model.ig.set_weights([a["ig"]]); model.im.set_weights([a["im"]])
+    for l, layer in enumerate(model.mlp):
+        layer.set_weights([a[f"W{l}"], a[f"b{l}"]])
+    model.out.set_weights([a["Wo"], a["bo"]])
+    train_vars = [model.ug.trainable_variables[0], model.um.trainable_variables[0]]  # ONLY these are updated
+    opt = tf.keras.optimizers.Adam(lr)
+    counts = np.bincount(ii, minlength=ni)
+
+    @tf.function(reduce_retracing=True)
+    def step(u, i, y):
+        with tf.GradientTape() as tape:
+            loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(labels=y, logits=model(u, i)))
+        opt.apply_gradients(zip(tape.gradient(loss, train_vars), train_vars))
+        return loss
+
+    history = []
+    for epoch in range(1, epochs + 1):
+        nu_, ni_ = sample_negatives(ui, ii, ni, neg_k, pop_frac, counts, rng)
+        u, i = np.concatenate([ui, nu_]), np.concatenate([ii, ni_])
+        y = np.concatenate([np.ones(len(ui), np.float32), np.zeros(len(nu_), np.float32)])
+        perm = rng.permutation(len(u))
+        loss = float(np.mean([float(step(u[perm[s:s + batch]], i[perm[s:s + batch]], y[perm[s:s + batch]])) for s in range(0, len(u), batch)]))
+        history.append({"epoch": epoch, "loss": loss, "rows": int(len(u))})
+        log(f"fold-in epoch {epoch}: loss {loss:.4f}, {len(u)} rows")
+    new = model_arrays(model)
+    for k in ("ig", "im", "Wo", "bo", *[f"{p}{l}" for l in range(len(MLP_LAYERS)) for p in ("W", "b")]):
+        assert np.array_equal(new[k], a[k]), f"fold-in changed the frozen parameter {k}"
+    return NCFScorer(new, users_new, frozen.item_ids), history
