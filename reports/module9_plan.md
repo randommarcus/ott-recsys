@@ -114,6 +114,9 @@ Not used: EC2, NAT gateway, VPC, provisioned concurrency, S3 (unless section 4 n
 **REVISED (CP0): the IAM policies now live in `reports/module9_iam.md` and supersede the JSON below.** Changes: you create the Lambda execution role yourself in the
 console; `ott-dev` has NO `iam:Create*`, `iam:Attach*`, `iam:Put*` or any role-editing action, only `iam:PassRole` on the single role ARN
 `arn:aws:iam::ACCOUNT_ID:role/ott-recsys-lambda-role` (passed to lambda.amazonaws.com only). The older JSON below is kept only to show what was replaced.
+The `ott-dev` policy is attached as a **customer managed policy named `ott-dev-serving`**, not as an inline policy on the user: AWS allows only 2,048 non-whitespace
+characters of inline policy per user and 6,144 per customer managed policy (10,240 per role-inline policy), and the policy is about 2,730 characters
+([IAM quotas](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_iam-quotas.html)). Details and the CP1 changes (UpdateFunctionUrlConfig, names-only list statement) are in `module9_iam.md`.
 
 Superseded policy for the `ott-dev` IAM user (replace ACCOUNT_ID; for one region, drop the other from the lists):
 
@@ -234,7 +237,7 @@ Predictions committed before any measurement (`reports/module9_latency_predictio
 | CP | What | State change | Cost (estimate) | Needs |
 |---|---|---|---|---|
 | 0 | Local only: `.env.example` placeholder; serving package (numpy features, tree evaluator, handler); parity tests vs `rankfeat`/xgboost; no-secrets test; policy test; M3b refit; local handler run against an in-memory fake DynamoDB; zip build + size. Commit each script before editing it. Show results. | none | $0 | go for this plan |
-| 1 | **You, manually**: create the Lambda execution role `ott-recsys-lambda-role` in the console (trust lambda.amazonaws.com, inline policy from `module9_iam.md`); create IAM user `ott-dev`, attach its policy from `module9_iam.md` (your decision), create its access key and run `aws configure --profile ott-dev` in your own terminal (this project now denies me that command and any read of the AWS credential folder); create a $5 AWS budget alert; check whether the account is on the Free plan with credits [verify in console]. | yours | $0 | you |
+| 1 | **You, manually**: create the Lambda execution role `ott-recsys-lambda-role` in the console (trust lambda.amazonaws.com, inline policy from `module9_iam.md`); create IAM user `ott-dev` and attach its policy from `module9_iam.md` as the customer managed policy `ott-dev-serving` (not inline: user-inline limit is 2,048 characters), create its access key and run `aws configure --profile ott-dev` in your own terminal (this project now denies me that command and any read of the AWS credential folder); create a $5 AWS budget alert; check whether the account is on the Free plan with credits [verify in console]. | yours | $0 | you |
 | 2 | **First AWS write**: permission tests in eu-central-1 then ap-south-1; show the report; pick region. | throwaway, auto-deleted | ~$0.00 | go |
 | 3 | **First Zilliz write**: create both collections, insert vectors (~50 MB, < 1 min at 2 MB/s), build index, load. You create the read-only key and add it to `.env`; a test shows it can search but an insert into a scratch collection is refused. | Zilliz free | $0 | go |
 | 4 | Deploy in region R: SSM params, log group (7 days), role, DynamoDB tables + load, Lambda, Function URL; smoke test 5 users. | AWS | < $0.50 one-time | go |

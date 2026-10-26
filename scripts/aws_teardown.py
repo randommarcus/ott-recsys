@@ -4,7 +4,7 @@
     python scripts/aws_teardown.py --region eu-central-1
     python scripts/aws_teardown.py --confirm DELETE-OTT # delete, then re-check and print 'remaining: N'
 
-Looks only at exact names (the ott-dev policy has no list permissions): function ott-recsys-serve and ott-permtest (and their Function URLs), log groups
+Looks only at exact names (it never lists accounts; the policy's names-only list calls are for a manual leftovers check): function ott-recsys-serve and ott-permtest (and their Function URLs), log groups
 /aws/lambda/ott-recsys-serve and /aws/lambda/ott-permtest, DynamoDB tables ott-users, ott-bandit, ott-permtest, SSM parameters /ott/zilliz and /ott/permtest.
 NOT touched: the IAM role, the ott-dev user and its key, the budget alert, and the Zilliz collections (see the manual checklist in reports/module9_plan.md).
 Prints names and exists / absent / unknown(code) only: no account id, ARN or request id."""

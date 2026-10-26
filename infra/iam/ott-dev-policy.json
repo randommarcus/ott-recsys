@@ -21,7 +21,7 @@
         "lambda:CreateFunction", "lambda:DeleteFunction", "lambda:GetFunction", "lambda:GetFunctionConfiguration",
         "lambda:UpdateFunctionCode", "lambda:UpdateFunctionConfiguration",
         "lambda:InvokeFunction", "lambda:InvokeFunctionUrl",
-        "lambda:CreateFunctionUrlConfig", "lambda:GetFunctionUrlConfig", "lambda:DeleteFunctionUrlConfig",
+        "lambda:CreateFunctionUrlConfig", "lambda:GetFunctionUrlConfig", "lambda:UpdateFunctionUrlConfig", "lambda:DeleteFunctionUrlConfig",
         "lambda:PutFunctionConcurrency", "lambda:DeleteFunctionConcurrency", "lambda:GetFunctionConcurrency",
         "lambda:TagResource", "lambda:ListTags"
       ],
@@ -39,9 +39,7 @@
       ],
       "Resource": [
         "arn:aws:logs:eu-central-1:ACCOUNT_ID:log-group:/aws/lambda/ott-*",
-        "arn:aws:logs:eu-central-1:ACCOUNT_ID:log-group:/aws/lambda/ott-*:*",
-        "arn:aws:logs:ap-south-1:ACCOUNT_ID:log-group:/aws/lambda/ott-*",
-        "arn:aws:logs:ap-south-1:ACCOUNT_ID:log-group:/aws/lambda/ott-*:*"
+        "arn:aws:logs:ap-south-1:ACCOUNT_ID:log-group:/aws/lambda/ott-*"
       ]
     },
     {
@@ -52,6 +50,12 @@
         "arn:aws:ssm:eu-central-1:ACCOUNT_ID:parameter/ott/*",
         "arn:aws:ssm:ap-south-1:ACCOUNT_ID:parameter/ott/*"
       ]
+    },
+    {
+      "Sid": "ListNamesForTeardownCheck",
+      "Effect": "Allow",
+      "Action": ["dynamodb:ListTables", "lambda:ListFunctions", "logs:DescribeLogGroups", "ssm:DescribeParameters"],
+      "Resource": "*"
     },
     {
       "Sid": "PassTheOneLambdaRole",
