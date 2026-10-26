@@ -1,0 +1,335 @@
+== CONFIG ==
+dataset_name               ml-25m
+raw_dir                    /home/sudu/ott-recsys/data/raw
+processed_dir              /home/sudu/ott-recsys/data/processed
+sample_users               20000
+sample_seed                42
+min_sample_interactions    20
+mem_limit_gb               7.5
+tune_users                 3000
+positive_threshold         4.0
+session_gap_minutes        30
+burst_window_minutes       10
+burst_min_ratings          30
+train_frac                 0.7
+val_frac                   0.15
+min_user_interactions      10
+user_test_frac             0.2
+user_val_frac              0.1
+history_len                20
+embed_dim                  64
+temperature                0.07
+batch_size                 2048
+learning_rate              0.001
+id_dropout                 0.25
+max_epochs                 15
+patience                   2
+model_seed                 0
+ranker params: {'n_estimators': 800, 'learning_rate': 0.08, 'max_depth': 6, 'subsample': 0.8, 'colsample_bytree': 0.8, 'min_child_weight': 1.0, 'max_bin': 128, 'early_stopping_rounds': 30, 'lambdarank_pair_method': 'topk', 'lambdarank_num_pair_per_sample': 20} (rank:ndcg, 5 user-grouped folds, early stopping on an inner 10% of training users)
+
+== DATA: 18530 validation users; 230-slot lists (200 ID-only two-tower + up to 30 new-release-lane) after removing candidates released AFTER the request time ==
+rows 3926086 (212 per user); positives 71422 (1.82%); features: 37 (+4 SIMULATED device columns in M3 variants)
+held-out users (never used for tt/NCF selection): 15530; selection users: 3000. Primary tables use the held-out users.
+request time = first validation interaction (its timestamp only); context features use train interactions strictly before it.
+
+== RELEASE-BY-REQUEST-TIME FILTER: baselines on unfiltered (Module 5) vs filtered lists (held-out users, end-to-end) ==
+                            unfiltered NDCG@10  filtered NDCG@10  unfiltered Recall@20  filtered Recall@20
+random                                  0.0255            0.0274                0.0571              0.0642
+pop (popularity order)                  0.0601            0.0633                0.1171              0.1235
+tt (two-tower's own order)              0.1233            0.1242                0.2300              0.2321
+ncf (NCF order)                         0.0890            0.0899                0.1813              0.1836
+blend (50/50 tt+ncf)                    0.1226            0.1233                0.2316              0.2340
+slots removed: 335814 of 4261900 (7.9%); likes inside the lists lost: 1710 of 73132
+
+== LADDER, REAL LABELS: HELD-OUT users (primary): mean [95% CI over users]; out-of-fold ranker scores ==
+                                                e2e_ndcg10          e2e_recall20             rr_ndcg10           rr_recall20  users
+random                                0.0274 [0.026-0.029]  0.0642 [0.062-0.067]  0.0354 [0.034-0.037]  0.0988 [0.095-0.102]  15530
+pop (popularity order)                0.0633 [0.061-0.066]  0.1235 [0.120-0.127]  0.0806 [0.078-0.083]  0.1879 [0.183-0.193]  15530
+tt (two-tower's own order)            0.1242 [0.121-0.127]  0.2321 [0.227-0.237]  0.1515 [0.148-0.155]  0.3197 [0.314-0.325]  15530
+ncf (NCF order)                       0.0899 [0.087-0.092]  0.1836 [0.179-0.188]  0.1133 [0.110-0.116]  0.2664 [0.261-0.272]  15530
+blend (50/50 tt+ncf)                  0.1233 [0.120-0.126]  0.2340 [0.230-0.239]  0.1519 [0.148-0.155]  0.3293 [0.324-0.335]  15530
+M0 ranker, no context                 0.1370 [0.134-0.140]  0.2508 [0.246-0.256]  0.1688 [0.165-0.172]  0.3533 [0.348-0.359]  15530
+M1 + hour/day                         0.1379 [0.135-0.141]  0.2512 [0.246-0.256]  0.1702 [0.167-0.174]  0.3540 [0.348-0.360]  15530
+M2 + session                          0.1388 [0.136-0.142]  0.2529 [0.248-0.258]  0.1713 [0.168-0.175]  0.3576 [0.352-0.364]  15530
+M3a + SIMULATED device (independent)  0.1389 [0.136-0.142]  0.2522 [0.247-0.257]  0.1715 [0.168-0.175]  0.3558 [0.351-0.362]  15530
+oracle                                0.7551 [0.750-0.760]  0.6431 [0.638-0.649]  1.0000 [1.000-1.000]  0.9982 [0.998-0.999]  15530
+
+== LADDER, REAL LABELS: ALL users: mean [95% CI over users]; out-of-fold ranker scores ==
+                                                e2e_ndcg10          e2e_recall20             rr_ndcg10           rr_recall20  users
+random                                0.0274 [0.026-0.029]  0.0641 [0.062-0.066]  0.0352 [0.034-0.037]  0.0983 [0.095-0.101]  18530
+pop (popularity order)                0.0642 [0.062-0.066]  0.1236 [0.120-0.127]  0.0817 [0.079-0.084]  0.1876 [0.183-0.192]  18530
+tt (two-tower's own order)            0.1238 [0.121-0.127]  0.2326 [0.228-0.237]  0.1509 [0.148-0.154]  0.3196 [0.314-0.325]  18530
+ncf (NCF order)                       0.0902 [0.088-0.093]  0.1850 [0.181-0.189]  0.1134 [0.111-0.116]  0.2677 [0.263-0.273]  18530
+blend (50/50 tt+ncf)                  0.1232 [0.120-0.126]  0.2346 [0.230-0.239]  0.1517 [0.149-0.155]  0.3293 [0.324-0.335]  18530
+M0 ranker, no context                 0.1368 [0.134-0.140]  0.2515 [0.247-0.257]  0.1684 [0.165-0.172]  0.3536 [0.348-0.359]  18530
+M1 + hour/day                         0.1378 [0.135-0.141]  0.2516 [0.247-0.257]  0.1696 [0.166-0.173]  0.3540 [0.348-0.359]  18530
+M2 + session                          0.1382 [0.135-0.141]  0.2538 [0.249-0.259]  0.1703 [0.167-0.174]  0.3578 [0.353-0.363]  18530
+M3a + SIMULATED device (independent)  0.1387 [0.136-0.142]  0.2529 [0.248-0.258]  0.1709 [0.168-0.174]  0.3562 [0.351-0.361]  18530
+oracle                                0.7563 [0.752-0.761]  0.6452 [0.641-0.650]  1.0000 [1.000-1.000]  0.9982 [0.998-0.999]  18530
+
+== PAIRED DIFFERENCES, REAL LABELS, held-out users (* = interval excludes 0) ==
+  M0 - tt                    e2e_ndcg10    +0.0127 [+0.0110, +0.0145]  *
+  M0 - tt                    e2e_recall20  +0.0187 [+0.0160, +0.0214]  *
+  M0 - tt                    rr_ndcg10     +0.0172 [+0.0149, +0.0196]  *
+  M0 - tt                    rr_recall20   +0.0337 [+0.0297, +0.0378]  *
+  M0 - ncf_main              e2e_ndcg10    +0.0471 [+0.0443, +0.0498]  *
+  M0 - ncf_main              e2e_recall20  +0.0672 [+0.0635, +0.0710]  *
+  M0 - ncf_main              rr_ndcg10     +0.0555 [+0.0522, +0.0590]  *
+  M0 - ncf_main              rr_recall20   +0.0869 [+0.0816, +0.0923]  *
+  M0 - blend_main            e2e_ndcg10    +0.0137 [+0.0117, +0.0157]  *
+  M0 - blend_main            e2e_recall20  +0.0168 [+0.0142, +0.0195]  *
+  M0 - blend_main            rr_ndcg10     +0.0169 [+0.0143, +0.0194]  *
+  M0 - blend_main            rr_recall20   +0.0240 [+0.0202, +0.0281]  *
+  M0 - pop                   e2e_ndcg10    +0.0736 [+0.0704, +0.0770]  *
+  M0 - pop                   e2e_recall20  +0.1273 [+0.1223, +0.1322]  *
+  M0 - pop                   rr_ndcg10     +0.0882 [+0.0842, +0.0922]  *
+  M0 - pop                   rr_recall20   +0.1654 [+0.1591, +0.1725]  *
+  M1 - M0                    e2e_ndcg10    +0.0010 [+0.0000, +0.0019]  *
+  M1 - M0                    e2e_recall20  +0.0003 [-0.0012, +0.0019]
+  M1 - M0                    rr_ndcg10     +0.0014 [+0.0000, +0.0027]  *
+  M1 - M0                    rr_recall20   +0.0007 [-0.0014, +0.0029]
+  M2 - M1                    e2e_ndcg10    +0.0009 [-0.0003, +0.0021]
+  M2 - M1                    e2e_recall20  +0.0017 [-0.0001, +0.0034]
+  M2 - M1                    rr_ndcg10     +0.0011 [-0.0005, +0.0028]
+  M2 - M1                    rr_recall20   +0.0035 [+0.0010, +0.0060]  *
+  M3a - M2                   e2e_ndcg10    +0.0001 [-0.0010, +0.0013]
+  M3a - M2                   e2e_recall20  -0.0007 [-0.0024, +0.0010]
+  M3a - M2                   rr_ndcg10     +0.0002 [-0.0013, +0.0016]
+  M3a - M2                   rr_recall20   -0.0017 [-0.0041, +0.0007]
+  M2 - M0                    e2e_ndcg10    +0.0018 [+0.0006, +0.0031]  *
+  M2 - M0                    e2e_recall20  +0.0020 [+0.0003, +0.0038]  *
+  M2 - M0                    rr_ndcg10     +0.0025 [+0.0010, +0.0043]  *
+  M2 - M0                    rr_recall20   +0.0043 [+0.0017, +0.0070]  *
+  M3a - M0                   e2e_ndcg10    +0.0019 [+0.0006, +0.0032]  *
+  M3a - M0                   e2e_recall20  +0.0013 [-0.0004, +0.0032]
+  M3a - M0                   rr_ndcg10     +0.0027 [+0.0011, +0.0044]  *
+  M3a - M0                   rr_recall20   +0.0025 [-0.0002, +0.0051]
+
+held-out vs all users, M2 end-to-end NDCG@10: 0.1388 vs 0.1382
+
+====================================================================================================
+SCENARIO (b): SYNTHETIC LABELS AND SIMULATED DEVICE - A PIPELINE DEMONSTRATION, NOT A FINDING.
+Devices were assigned at random (tv 40%, mobile 35%, web 15%, tablet 10%). On a MOBILE request each validation like of a Drama-without-Comedy title was REMOVED with probability 0.6 (11782 likes removed; 11782 fewer likes overall). Nothing here says anything about real viewers.
+M3b = M2 + device; M3b_shuf = the same device column shuffled across users (gain over M2b should vanish).
+====================================================================================================
+HELD-OUT users, SYNTHETIC labels:
+                                                        e2e_ndcg10          e2e_recall20             rr_ndcg10           rr_recall20  users
+random                                        0.0265 [0.025-0.028]  0.0640 [0.062-0.067]  0.0347 [0.033-0.036]  0.0984 [0.095-0.102]  15285
+pop (popularity order)                        0.0610 [0.059-0.063]  0.1237 [0.120-0.127]  0.0784 [0.076-0.081]  0.1883 [0.184-0.193]  15285
+tt (two-tower's own order)                    0.1205 [0.118-0.124]  0.2321 [0.227-0.237]  0.1486 [0.145-0.152]  0.3210 [0.315-0.327]  15285
+ncf (NCF order)                               0.0870 [0.085-0.089]  0.1829 [0.178-0.187]  0.1106 [0.108-0.114]  0.2664 [0.261-0.272]  15285
+blend (50/50 tt+ncf)                          0.1194 [0.117-0.122]  0.2331 [0.228-0.238]  0.1486 [0.145-0.152]  0.3292 [0.323-0.335]  15285
+M2b ranker (synthetic labels)                 0.1364 [0.133-0.139]  0.2550 [0.250-0.260]  0.1706 [0.167-0.174]  0.3630 [0.358-0.369]  15285
+M3b + SIMULATED device (synthetic labels)     0.1393 [0.136-0.142]  0.2574 [0.252-0.263]  0.1741 [0.170-0.178]  0.3660 [0.360-0.372]  15285
+M3b_shuf: device shuffled (synthetic labels)  0.1369 [0.134-0.140]  0.2558 [0.251-0.261]  0.1711 [0.167-0.175]  0.3637 [0.358-0.369]  15285
+oracle                                        0.7481 [0.743-0.753]  0.6427 [0.637-0.648]  1.0000 [1.000-1.000]  0.9985 [0.998-0.999]  15285
+
+PAIRED, synthetic labels, held-out users:
+  M3b - M2b                  e2e_ndcg10    +0.0029 [+0.0018, +0.0041]  *
+  M3b - M2b                  e2e_recall20  +0.0025 [+0.0007, +0.0042]  *
+  M3b - M2b                  rr_ndcg10     +0.0035 [+0.0020, +0.0051]  *
+  M3b - M2b                  rr_recall20   +0.0029 [+0.0002, +0.0057]  *
+  M3b_shuf - M2b             e2e_ndcg10    +0.0006 [-0.0005, +0.0017]
+  M3b_shuf - M2b             e2e_recall20  +0.0008 [-0.0009, +0.0025]
+  M3b_shuf - M2b             rr_ndcg10     +0.0005 [-0.0010, +0.0019]
+  M3b_shuf - M2b             rr_recall20   +0.0007 [-0.0018, +0.0030]
+  M3b - M3b_shuf             e2e_ndcg10    +0.0024 [+0.0013, +0.0035]  *
+  M3b - M3b_shuf             e2e_recall20  +0.0017 [-0.0000, +0.0034]
+  M3b - M3b_shuf             rr_ndcg10     +0.0030 [+0.0016, +0.0045]  *
+  M3b - M3b_shuf             rr_recall20   +0.0023 [-0.0001, +0.0048]
+  M2b - tt                   e2e_ndcg10    +0.0158 [+0.0138, +0.0178]  *
+  M2b - tt                   e2e_recall20  +0.0228 [+0.0200, +0.0258]  *
+  M2b - tt                   rr_ndcg10     +0.0221 [+0.0195, +0.0245]  *
+  M2b - tt                   rr_recall20   +0.0420 [+0.0378, +0.0464]  *
+
+the effect should live in MOBILE users only (held-out users, e2e NDCG@10 paired difference):
+  mobile users      n= 5468 M3b - M2b: +0.0053 [+0.0031, +0.0074]  *
+  mobile users      n= 5468 M3b_shuf - M2b: +0.0010 [-0.0010, +0.0030]
+  non-mobile users  n=10062 M3b - M2b: +0.0017 [+0.0003, +0.0032]  *
+  non-mobile users  n=10062 M3b_shuf - M2b: +0.0004 [-0.0010, +0.0018]
+
+====================================================================================================
+
+== SESSION GAIN (M2 - M1, end-to-end NDCG@10, held-out users) BY HOW LONG THE RATING SPREE ALREADY IS AT REQUEST TIME ==
+  not in a session (>30 min silence)   n=  621  +0.0110 [+0.0013, +0.0203]  *
+  spree of 1-9 ratings                 n= 1602  +0.0029 [-0.0019, +0.0075]
+  spree of 10-49                       n= 8111  +0.0005 [-0.0012, +0.0022]
+  spree of 50-199                      n= 4552  -0.0002 [-0.0020, +0.0015]
+  spree of 200+                        n=  644  -0.0020 [-0.0071, +0.0036]
+(a gain concentrated in long sprees reflects bulk rating - e.g. rating page after page of one genre - and may not exist on a real OTT service)
+
+== NEW-RELEASE LANE GROUP (held-out users) ==
+in-list liked items on lane slots: 15 (far too few to judge lane quality) of 59959
+                           lane share of top-10 slots lane share of top-20 slots lane likes found in top-20
+tt (two-tower's own order)                        0.0                        0.0                    0 of 15
+ncf (NCF order)                                   0.0                        0.0                    0 of 15
+blend (50/50 tt+ncf)                              0.0                        0.0                    0 of 15
+M0 ranker, no context                             0.0                        0.0                    0 of 15
+M2 + session                                      0.0                        0.0                    0 of 15
+A ranker trained on these labels buries new releases; reserved exposure (Module 7 bandit) and the global-cutoff evaluation are the right tools for them.
+
+== FEATURE IMPORTANCE (normalised gain, mean over 5 folds) ==
+M0 by feature group:
+item genre one-hots           0.3130
+NCF                           0.2869
+two-tower                     0.2778
+popularity (as of request)    0.0503
+content similarity            0.0274
+item age                      0.0263
+genre match                   0.0184
+lane flag                     0.0000
+hour / day-of-week            0.0000
+session                       0.0000
+device (SIMULATED)            0.0000
+M0 top 12 single features:
+tt_rank           0.1899
+ncf_logit         0.1645
+ncf_item_known    0.1050
+tt_score          0.0879
+pop_asof          0.0503
+content_sim       0.0274
+item_age_days     0.0263
+g_IMAX            0.0205
+g_Children        0.0187
+g_Crime           0.0185
+genre_aff         0.0184
+g_Sci-Fi          0.0181
+
+M2 by feature group:
+item genre one-hots           0.2693
+two-tower                     0.2661
+NCF                           0.2126
+session                       0.1094
+popularity (as of request)    0.0418
+hour / day-of-week            0.0268
+content similarity            0.0257
+item age                      0.0254
+genre match                   0.0159
+lane flag                     0.0070
+device (SIMULATED)            0.0000
+M2 top 12 single features:
+tt_rank              0.1811
+ncf_logit            0.1480
+tt_score             0.0850
+ncf_item_known       0.0506
+pop_asof             0.0418
+content_sim          0.0257
+item_age_days        0.0254
+session_len          0.0213
+mins_since_last      0.0198
+sess_content_sim     0.0192
+sess_genre_match     0.0190
+session_like_rate    0.0190
+
+M3a by feature group:
+item genre one-hots           0.2720
+two-tower                     0.2549
+NCF                           0.1814
+session                       0.1044
+device (SIMULATED)            0.0531
+popularity (as of request)    0.0398
+hour / day-of-week            0.0285
+content similarity            0.0252
+item age                      0.0245
+genre match                   0.0162
+lane flag                     0.0000
+M3a top 12 single features:
+tt_rank             0.1727
+ncf_logit           0.1355
+tt_score            0.0821
+pop_asof            0.0398
+content_sim         0.0252
+item_age_days       0.0245
+ncf_user_known      0.0230
+ncf_item_known      0.0229
+session_len         0.0209
+sess_content_sim    0.0191
+mins_since_last     0.0190
+sess_genre_match    0.0185
+
+M3b by feature group:
+item genre one-hots           0.2974
+two-tower                     0.2329
+NCF                           0.1697
+device (SIMULATED)            0.0886
+session                       0.0879
+popularity (as of request)    0.0360
+hour / day-of-week            0.0255
+content similarity            0.0243
+item age                      0.0227
+genre match                   0.0151
+lane flag                     0.0000
+M3b top 12 single features:
+tt_rank             0.1607
+ncf_logit           0.1287
+tt_score            0.0722
+dev_mobile          0.0451
+g_Comedy            0.0388
+pop_asof            0.0360
+g_Drama             0.0293
+ncf_item_known      0.0251
+content_sim         0.0243
+item_age_days       0.0227
+session_len         0.0197
+sess_content_sim    0.0175
+
+M3b_shuf by feature group:
+item genre one-hots           0.2753
+NCF                           0.2383
+two-tower                     0.2306
+session                       0.0856
+device (SIMULATED)            0.0487
+popularity (as of request)    0.0354
+content similarity            0.0244
+hour / day-of-week            0.0242
+item age                      0.0221
+genre match                   0.0153
+lane flag                     0.0000
+M3b_shuf top 12 single features:
+tt_rank              0.1578
+ncf_logit            0.1294
+ncf_item_known       0.0948
+tt_score             0.0728
+pop_asof             0.0354
+g_Comedy             0.0264
+g_Drama              0.0261
+content_sim          0.0244
+item_age_days        0.0221
+session_len          0.0191
+sess_content_sim     0.0170
+session_like_rate    0.0165
+
+WARNING: importances are shaky for correlated features. Trees split credit between near-duplicates arbitrarily (two-tower score/rank, NCF logit and
+content similarity all measure 'does this user like this kind of movie'), so a small number does NOT mean a feature is useless, and a large number does not
+mean it causes anything. The simulated device column is pure noise in M3a, yet it gets non-zero gain because trees can always fit noise. Use the ablation
+ladder (retrain without the feature, paired intervals) to judge usefulness; use importances only as a rough map.
+
+== TRAINING ==
+M0        trees per fold [31, 39, 22, 28, 139]  (170 s)
+M1        trees per fold [46, 55, 28, 63, 76]  (185 s)
+M2        trees per fold [77, 46, 65, 45, 41]  (219 s)
+M3a       trees per fold [116, 48, 37, 75, 79]  (228 s)
+M2b       trees per fold [99, 71, 54, 60, 44]  (165 s)
+M3b       trees per fold [67, 75, 76, 46, 62]  (176 s)
+M3b_shuf  trees per fold [83, 51, 56, 40, 59]  (163 s)
+
+== WHAT THE PIECES DO (plain language) ==
+rank:ndcg objective. A normal classifier asks 'is this movie liked?' for each row on its own. A ranker is trained on whole lists: for each user it looks at pairs of
+candidates where one was liked and one was not, and learns to put the liked one higher. NDCG@10 rewards getting liked movies into the first few slots and rewards
+rank 1 more than rank 10, and rank:ndcg weights each pair by how much swapping them would change that score. So the model spends its effort on the top of the list and on
+users whose list is mostly wrong near the top, instead of on separating hopeless rows at the bottom. It only ever compares candidates of the same user.
+Feature groups. TWO-TOWER (score, rank): 'how close is this movie to the user's recent taste' - the strongest single signal because it reads the last 20 likes.
+NCF (logit + known flags): a long-term, ID-based taste score that ignores recency; missing (NaN) means NCF knows nothing about this user or movie.
+POPULARITY (as of request): how many likes the movie had before this moment - the crowd's view, without peeking at the future.
+CONTENT / GENRE MATCH: does the movie's text or genre resemble what the user liked; item GENRE ONE-HOTS let the ranker learn genre-specific effects and are what any context could interact with.
+ITEM AGE: days since release at request time. LANE FLAG: whether the candidate came from the new-release lane.
+HOUR / DAY: when the request happens (UTC, so a blurry proxy for local time). SESSION: whether, and how deep into a rating spree, the user is, and what the spree has been rating.
+DEVICE (SIMULATED): invented labels; in M3a it carries no information by construction, in scenario (b) it carries a planted effect.
+
+== DESIGN NOTE FOR THE FINAL TEST RUN (not executed; test remains sealed) ==
+Freeze everything trained on train only: ID-only two-tower, NCF, SBERT, and the ranker (trained on all validation users). Update HISTORIES through validation without retraining:
+two-tower user vectors from the last 20 likes in train+val, content/genre profiles from train+val likes, seen-item exclusion, as-of popularity, session features from train+val
+strictly before the first test interaction. NCF user IDs go stale: design for (1) fold-in - re-optimise only user embeddings on train+val positives with items and MLP frozen, or
+(2) stale NCF as a sensitivity check; the decision is deferred to unlock. Risks: feature distributions shift because histories are longer; the fold-in changes NCF's scale;
+test windows are twice as long so absolute numbers are not comparable with validation (only method-to-method comparisons are); test requests often continue the same rating spree;
+movies first liked in validation are unknown to the frozen ID models; per-user-split calendar leakage remains; and any re-tuning after seeing test would invalidate it (one shot).
