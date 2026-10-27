@@ -46,14 +46,19 @@ class Store:
         self.ro_can_write, self.ro_can_search = False, True  # a proper read-only key: can search, cannot write
         self.fail_upserts = 0
         self.insert_error = None
+        self.levels_seen = []
+        self.approx_below = None  # if set, levels below this drop every 7th hit (simulates AUTOINDEX recall < 100%)
 
-    def search(self, name, field, vec, limit, flt=""):
+    def search(self, name, field, vec, limit, flt="", level=None):
+        self.levels_seen.append(level)
         c = self.cols[name]
         ids = [i for i, r in c["rows"].items() if not (flt and "is_cold == true" in flt and not r.get("is_cold"))]
         q = np.asarray(vec, np.float32)
         scores = [float(np.dot(q, np.asarray(c["rows"][i][field], np.float32))) for i in ids]
-        order = np.argsort(-np.asarray(scores), kind="stable")[:limit]
-        return [(ids[j], scores[j]) for j in order]
+        order = np.argsort(-np.asarray(scores), kind="stable")
+        if self.approx_below is not None and (level or 1) < self.approx_below:
+            order = np.array([j for k, j in enumerate(order) if k % 7 != 6])
+        return [(ids[j], scores[j]) for j in order[:limit]]
 
 
 class Schema:
@@ -116,8 +121,9 @@ class Client:
     def search(self, collection_name, data, anns_field, limit, filter, search_params, output_fields):
         if self.role == "ro" and not self.s.ro_can_search:
             raise FakeError(f"permission denied: privilege Search ({RO})", code=65535)
-        assert search_params == {"metric_type": "IP"}
-        return [[{"id": i, "distance": d, "entity": {"item_id": i}} for i, d in self.s.search(collection_name, anns_field, data[0], limit, filter)]]
+        assert search_params["metric_type"] == "IP" and set(search_params) <= {"metric_type", "params"}
+        level = search_params.get("params", {}).get("level")
+        return [[{"id": i, "distance": d, "entity": {"item_id": i}} for i, d in self.s.search(collection_name, anns_field, data[0], limit, filter, level)]]
 
 
 def factory(store):
@@ -140,8 +146,9 @@ def rest_fake(store):
         if req.full_url.endswith("/entities/search"):
             if key == RO and not store.ro_can_search:
                 return _Resp(json.dumps({"code": 65535, "message": f"permission denied {RO}"}).encode())
-            assert body["searchParams"] == {"metricType": "IP"}
-            hits = store.search(body["collectionName"], body["annsField"], body["data"][0], body["limit"], body.get("filter", ""))
+            sp = body["searchParams"]
+            assert sp["metricType"] == "IP" and set(sp) <= {"metricType", "params"} and set(sp.get("params", {})) <= {"level"}
+            hits = store.search(body["collectionName"], body["annsField"], body["data"][0], body["limit"], body.get("filter", ""), sp.get("params", {}).get("level"))
             return _Resp(json.dumps({"code": 0, "data": [{"item_id": i, "distance": d} for i, d in hits]}).encode())
         if req.full_url.endswith("/entities/insert"):
             store.calls.append(("rest-insert", body["collectionName"]))
@@ -371,15 +378,84 @@ def test_rest_write_attempt_classification(monkeypatch):
     assert verifier.write_attempt_rest(CANARY_URI, RO) == "INCONCLUSIVE (code 1100)"
 
 
-@pytest.mark.skipif(not (HAVE_EXPORTS and (OUT / "serving" / "users.npz").exists()), reason="serving artifacts not built")
-def test_verify_recall_check_with_exact_search_matches_the_precomputed_lists(env, monkeypatch, capsys):
+HAVE_SERVING = HAVE_EXPORTS and (OUT / "serving" / "users.npz").exists()
+
+
+def study_lines(out):
+    return {int(l.split()[1].rstrip(":")): l for l in out.splitlines() if l.strip().startswith("level ")}
+
+
+@pytest.mark.skipif(not HAVE_SERVING, reason="serving artifacts not built")
+def test_level_study_with_exact_search_is_perfect_at_every_level(env, monkeypatch, capsys):
     s = loaded_store()
     monkeypatch.setattr(urllib.request, "urlopen", rest_fake(s))
-    assert verifier.main(["--recall"], client_factory=factory(s)) == 0
+    assert verifier.main(["--recall", "--users", "20"], client_factory=factory(s)) == 0
     out = capsys.readouterr().out
-    line = [l for l in out.splitlines() if l.startswith("C recall")][0]
-    main_pct = float(line.split("main overlap ")[1].split("%")[0])
-    assert main_pct >= 99.0, line  # the fake search is exact, like the earlier numpy check
+    assert "NOT Lambda latency" in out and "THIS LAPTOP" in out and not clean(out)
+    lines = study_lines(out)
+    assert sorted(lines) == [1, 3, 5, 7, 10]
+    for line in lines.values():
+        assert "main recall 100.0% (20 identical)" in line and "top-18 overlap 100.0%, same set 20/20, same order 20/20" in line and "fallbacks" not in line
+        assert "(40 searches)" in line, "2 searches per user: the handler's live mode must reuse the recall step's identical queries"
+    assert {1, 3, 5, 7, 10} <= set(s.levels_seen), "every level must actually be sent to Zilliz"
+
+
+@pytest.mark.skipif(not HAVE_SERVING, reason="serving artifacts not built")
+def test_level_study_shows_lower_recall_at_low_levels(env, monkeypatch, capsys):
+    s = loaded_store()
+    s.approx_below = 5
+    monkeypatch.setattr(urllib.request, "urlopen", rest_fake(s))
+    verifier.main(["--recall", "--users", "15", "--levels", "1,5"], client_factory=factory(s))
+    lines = study_lines(capsys.readouterr().out)
+    low = float(lines[1].split("main recall ")[1].split("%")[0])
+    assert low < 95.0 and "main recall 100.0%" in lines[5]
+    assert "same set 15/15" in lines[5] and "same set 15/15" not in lines[1]
+
+
+def test_levels_option_is_validated(env):
+    for bad in ("0,5", "1,11", "x"):
+        with pytest.raises(SystemExit):
+            verifier.main(["--recall", "--levels", bad])
+    with pytest.raises(SystemExit):
+        verifier.main(["--level", "12"])
+
+
+@real
+def test_explicit_level_reaches_both_search_paths(env, monkeypatch, capsys):
+    s = loaded_store()
+    monkeypatch.setattr(urllib.request, "urlopen", rest_fake(s))
+    s.levels_seen.clear()
+    assert verifier.main(["--level", "7"], client_factory=factory(s)) == 0
+    assert "at search level 7" in capsys.readouterr().out
+    assert s.levels_seen[:6] == [7] * 6, "A1 (pymilvus) and A2 (REST) must both send level 7"
+
+
+def test_pymilvus_search_params_shape():
+    assert verifier.search_params_pm(None) == {"metric_type": "IP"}
+    assert verifier.search_params_pm(5) == {"metric_type": "IP", "params": {"level": 5}}
+
+
+# ------------------------------------------------------------------------------------------------ --reset-probe
+@real
+def test_reset_probe_rebuilds_only_the_probe(env, capsys):
+    s = loaded_store()
+    s.cols[zc.PROBE]["rows"][-1] = dict(zc.WRITE_TEST_ROW)  # the junk row a writable key left behind
+    s.cols["someone_elses_collection"] = {"rows": {}, "loaded": True}
+    before = {n: dict(s.cols[n]["rows"]) for n in (zc.TT, zc.CONTENT)}
+    s.calls.clear()
+    assert loader.main(["--reset-probe"], client_factory=factory(s)) == 0
+    assert "would rebuild: ott_write_probe (1 rows)" in capsys.readouterr().out and s.calls == []
+    assert loader.main(["--confirm", "LOAD-ZILLIZ", "--reset-probe"], client_factory=factory(s), sleep=lambda x: None) == 0
+    out = capsys.readouterr().out
+    assert "probe reset" in out and out.count("integrity: ok") == 1 and not clean(out)
+    assert set(s.cols[zc.PROBE]["rows"]) == {1}
+    assert {c[1] for c in s.calls} == {zc.PROBE}, "nothing but the probe may be dropped or written"
+    assert all(s.cols[n]["rows"] == before[n] for n in before) and "someone_elses_collection" in s.cols
+
+
+def test_reset_probe_cannot_be_combined_with_recreate(env):
+    with pytest.raises(SystemExit):
+        loader.main(["--confirm", "LOAD-ZILLIZ", "--reset-probe", "--recreate"])
 
 
 # ------------------------------------------------------------------------------------------------ canary subprocesses (real pymilvus, unreachable host)

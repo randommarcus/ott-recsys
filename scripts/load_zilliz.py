@@ -3,6 +3,7 @@
     python scripts/load_zilliz.py                          # local integrity check + read-only preflight (connect, list collections); writes nothing
     python scripts/load_zilliz.py --confirm LOAD-ZILLIZ    # FIRST ZILLIZ WRITE: creates and fills the three collections
     python scripts/load_zilliz.py --confirm LOAD-ZILLIZ --recreate   # drops ONLY our three collections first, then loads again
+    python scripts/load_zilliz.py --confirm LOAD-ZILLIZ --reset-probe   # drops and rebuilds ONLY ott_write_probe (1 row); nothing else is touched
 
 Creates exactly movie_items_twotower_id (16,450 rows), movie_items_content (33,392 rows) and ott_write_probe (1 row), AUTOINDEX with metric IP on every
 vector field. Uses ZILLIZ_URI and the full-access ZILLIZ_TOKEN from .env (loaded inside Python). Prints only step names, row counts, seconds and error TYPE
@@ -16,7 +17,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 from ott_recsys.config import Config
-from ott_recsys.zilliz_collections import NAMES, SPEC, create, default_client_factory, error_code, load_env, quiet, read_export, row_count, rows
+from ott_recsys.zilliz_collections import NAMES, PROBE, SPEC, create, default_client_factory, error_code, load_env, quiet, read_export, row_count, rows
 
 CONFIRM_WORD = "LOAD-ZILLIZ"
 
@@ -52,8 +53,13 @@ def main(argv=None, client_factory=None, out_dir=None, sleep=time.sleep) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--confirm", default=None)
     ap.add_argument("--recreate", action="store_true")
+    ap.add_argument("--reset-probe", action="store_true", help="rebuild only the scratch collection ott_write_probe")
     ap.add_argument("--batch", type=int, default=500)
     args = ap.parse_args(argv)
+    if args.reset_probe and args.recreate:
+        ap.error("--reset-probe and --recreate cannot be combined")
+    targets = (PROBE,) if args.reset_probe else NAMES
+    recreate = args.recreate or args.reset_probe
     if args.confirm is not None and args.confirm != CONFIRM_WORD:
         print(f"refused: --confirm must be exactly {CONFIRM_WORD}")
         return 2
@@ -62,7 +68,7 @@ def main(argv=None, client_factory=None, out_dir=None, sleep=time.sleep) -> int:
 
     # 1. local integrity check (no network)
     data = {}
-    for name in NAMES:
+    for name in targets:
         try:
             data[name] = read_export(out_dir, name)
         except AssertionError as bad:
@@ -84,24 +90,24 @@ def main(argv=None, client_factory=None, out_dir=None, sleep=time.sleep) -> int:
         shown = error_code(exc)
         print(f"connection: no (error type: {shown})")
         return 1
-    ours = [n for n in NAMES if n in existing]
+    ours = [n for n in targets if n in existing]
     print(f"connection: yes; collections in the cluster: {len(existing)} (ours already present: {', '.join(ours) if ours else 'none'}; others are never touched)")
     if not write:
-        verb = "would REFUSE (ours exist; add --recreate)" if ours and not args.recreate else "would create"
-        print(f"DRY RUN: nothing written. With --confirm {CONFIRM_WORD} it {verb}: " + ", ".join(f"{n} ({SPEC[n]['rows']} rows)" for n in NAMES))
+        verb = "would REFUSE (ours exist; add --recreate)" if ours and not recreate else ("would rebuild" if ours else "would create")
+        print(f"DRY RUN: nothing written. With --confirm {CONFIRM_WORD} it {verb}: " + ", ".join(f"{n} ({SPEC[n]['rows']} rows)" for n in targets))
         return 0
-    if ours and not args.recreate:
+    if ours and not recreate:
         print(f"refused: {', '.join(ours)} already exist; add --recreate to drop and rebuild ONLY our three collections")
         return 1
 
     # 3. write
-    for name in NAMES:
+    for name in targets:
         t0 = time.time()
         try:
             if name in ours:
                 with quiet():
                     client.drop_collection(collection_name=name)
-                print(f"dropped: {name} (--recreate)")
+                print(f"dropped: {name} ({'--reset-probe' if args.reset_probe else '--recreate'})")
             with quiet():
                 create(client, name)
             n = upsert_batches(client, name, data[name], args.batch, sleep)
@@ -121,7 +127,8 @@ def main(argv=None, client_factory=None, out_dir=None, sleep=time.sleep) -> int:
         print(f"loaded: {name:<26s} {count:>6d} rows (expected {SPEC[name]['rows']}) {'ok' if ok else 'MISMATCH'}  {time.time() - t0:.0f}s", flush=True)
         if not ok:
             return 1
-    print("load complete: 3 collections, AUTOINDEX (metric IP), loaded")
+    print("probe reset: ott_write_probe rebuilt with its one original row; no other collection touched" if args.reset_probe
+          else "load complete: 3 collections, AUTOINDEX (metric IP), loaded")
     return 0
 
 
