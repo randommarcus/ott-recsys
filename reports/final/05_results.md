@@ -118,7 +118,7 @@ The predictions held for 5 of 8 quantities. The three misses:
 - I predicted a cold start of 800 to 3,000 ms and measured 572 ms. However, this was the wrong number to predict. The function loads its data on the first request, not during start-up, so the real wait for a user hitting a cold function is about 2.1 to 2.4 seconds.
 - The laptop's network connection setup to Frankfurt took 492 ms, slower than the 100 to 400 ms I expected.
 
-**Live search quality.** Zilliz's index is approximate: it trades a little accuracy for speed. With its default setting, live search returned 87% of the exact candidates. Raising the search level helped up to level 5, and then stopped improving (Figure 5.6). I chose level 5. At that level, live mode shares about 93% of the top 18 titles with precomputed mode for the same user. Zilliz's documentation suggests that higher levels can reach 99%; on the free cluster I could not get past 92%, and I could not find out why.
+**Live search quality.** Zilliz's index is approximate: it trades a little accuracy for speed. With its default setting, live search returned 87% of the exact candidates. Raising the search level helped up to level 5, and then stopped improving (Figure 5.6). I chose level 5. At that level, live mode shares about 93% of the top 18 titles with precomputed mode for the same user. Zilliz's documentation suggests that higher levels can reach 99% (Zilliz, n.d.); on the free cluster I could not get past 92%, and I could not find out why.
 
 ![Figure 5.6 Live search quality by Zilliz search level, 100 users](figures/fig5_6_levels.png)
 
