@@ -22,7 +22,12 @@ def test_checker_does_not_flag_ordinary_words():
 def test_every_chapter_passes_the_style_check():
     assert CHAPTERS, "no chapters yet"
     for ch in CHAPTERS:
-        assert style.check_text(ch.read_text()) == [], ch.name
+        assert style.check_text(ch.read_text(), dashes_only=ch.name in style.TITLES_ONLY) == [], ch.name
+
+
+def test_reference_titles_are_exempt_from_words_but_not_from_dashes():
+    assert style.check_text("Efficient and Robust Approximate Nearest Neighbor Search", dashes_only=True) == []
+    assert style.check_text("pages 235\u2013256", dashes_only=True) == [(1, "en dash")]
 
 
 def test_word_builder_makes_a_document(tmp_path):
