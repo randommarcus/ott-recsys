@@ -267,6 +267,6 @@ A1/A2 PASS; B skipped by decision (a); verdict PASS. Same 100 users at every lev
 - **Consequence:** nothing is deployed now. Checkpoint 5 (demo + latency) needs a redeploy first: Zilliz load (about 3 min), DynamoDB create + load (about 10 min), SSM parameter, Lambda create (runbook Part A steps 1-4).
 
 ## Next
-- **Confirm the teardown:** `aws_teardown.py` dry run must show every table `absent` (`existing: 0`). Then decide: checkpoint 5 (demo + latency) after a redeploy, or stop serving here and move to the final report.
+- **Teardown confirmed (2026-10-27, dry run by you):** every `ott-*` resource `absent` in both Regions, `existing: 0`. **Decision:** redeploy for checkpoint 5 (demo + latency), then the final report from your output. Latency predictions committed first: `reports/module9_latency_predictions.md`.
 - Then checkpoint 5 (demo + latency; scripts still to write, predictions committed first) and 6 (teardown).
 - Test is spent: no more test runs. After serving: the final MBA report using the pre-registered results above.
