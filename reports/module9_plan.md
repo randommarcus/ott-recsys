@@ -1,6 +1,13 @@
 # Module 9 plan: serving (PLANNING ONLY, nothing created)
 
 Status: proposal. No AWS or Zilliz resource exists for this module. Every state change waits for an explicit go at its checkpoint (section 12).
+
+**Status update 2026-10-27 - new AWS account.** The earlier account (Builder sign-up, under an organisation service control policy) was closed. The deployment now targets a NEW standalone
+account (standard sign-up, root user, no organisation) and the PRIMARY route is the laptop with the IAM user `ott-dev` and profile `ott-dev`, regions eu-central-1 (primary, next to Zilliz) and
+ap-south-1. The only expected difference from the earlier checkpoint-2 attempt is that the permission tests should now pass. The CloudShell route (section 13) is a fallback only, and the evidence
+from the old account is in the "History" part of `reports/module9_runbook.md`. Credits: USD $100 at sign-up; a Free-plan account closes when credits run out or after six months
+([AWS Free Tier plans](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/free-tier-plans.html)) [plan type and service availability to verify in Billing]. Commands: `reports/module9_runbook.md`;
+what to create by hand and what not to: `reports/module9_account_setup.md`.
 Simulated parts are labelled: **device = SIMULATED**, **bandit feedback = SIMULATION, NOT AN A/B TEST**, **request clock = SIMULATED**,
 **M3b = "Synthetic device effect, pipeline demonstration, not a finding"**.
 
@@ -45,7 +52,7 @@ Hour and day come from that clock, in UTC like training. History = train + valid
 | From your laptop | far: TCP connect 265 ms (1 sample today) | near: TCP connect 45 ms (1 sample today) |
 | Precomputed mode | no Zilliz at request time | same; region choice only affects your network round trip |
 | Data transfer | in-region | cross-region Zilliz traffic, a few KB per request: ~$0 |
-| Service control policy | unknown: tested in section 8 | unknown: tested in section 8 |
+| Account policy blocks | none expected (standalone account, no organisation): confirmed by the section 8 tests | none expected: confirmed by the section 8 tests |
 
 Recommendation: **if both regions pass the permission tests, use eu-central-1** (compute next to the vector DB is the right design, and the server-side
 latency we report is then clean). Your laptop round trip is measured separately and reported as a fixed offset. If eu-central-1 is blocked, use ap-south-1
@@ -249,18 +256,13 @@ Expected total: under $1, most likely $0 within free tiers. To be confirmed in y
 Fallbacks (CLAUDE.md): Lambda blocked -> FastAPI on EC2 (would need a new plan and a go, EC2 is denied in the policy above);
 Zilliz fails -> mode A only, or Milvus on EC2 (same note).
 
-## 13. The CloudShell route (added after checkpoint 2 found the SCP block on `ott-dev`)
+## 13. FALLBACK ONLY: the CloudShell route (history of the old account)
 
-Status: `ott-dev` from the laptop is blocked by an organisation SCP for log groups, SSM parameters, DynamoDB tables and Lambda functions in both regions. You report that the
-console role session can create DynamoDB tables. So checkpoints 2 and 4 are re-run INSIDE AWS CloudShell with the console identity's temporary credentials
-(`--session-credentials` = boto3's default credential chain, no named profile, no file under the AWS credential folder read by our code). Full runbook, exact commands, file list and
-sizes: `reports/module9_cloudshell.md`. What changes in the plan above:
-- **Scripts:** `aws_permtest.py` and `aws_teardown.py` are single standalone files with the new flag (the EC2 "must be denied" check is skipped in that mode because that deny belongs to
-  `ott-dev-serving`); new standalone files in `scripts/cloudshell/`: `load_dynamodb.py` (creates the two on-demand tables, checks sha256, loads, reads back),
-  `deploy_lambda.py` (log group with 7-day retention, function, IAM-only Function URL, direct-invoke smoke test, code update, show-url) and `put_zilliz_param.py` (hidden prompts instead of `.env`).
-  `scripts/export_dynamodb_items.py` (laptop) writes the load files. Every rule above is kept: `ott-*` names only, nothing sensitive printed, no env vars on the function, no public URL, no provisioned concurrency.
-- **Sizes (measured):** DynamoDB load files 62.3 MiB in four parts of about 16 MiB (about 84,600 write units); Lambda zip 49.4 MiB; scripts under 14 KB each. Total about 112 MiB against CloudShell's 1 GB per Region.
-  CloudShell: 1 vCPU, 2 GiB RAM, 20-30 min idle timeout; single-file upload limit and Region availability could not be confirmed from the docs.
-- **Identity:** the console role needs the `ott-dev-serving` actions plus `iam:PassRole` on `ott-recsys-lambda-role` (draft in `infra/iam/console-role-passrole.json`, not attached).
-- **Demo:** the Function URL stays `AWS_IAM`. From the laptop only if `ott-dev` is allowed to invoke (to be checked once the function exists); otherwise the demo and latency runs happen in CloudShell and the report is downloaded.
-- **Checkpoints 2 and 4** therefore mean: you run the commands in the runbook in CloudShell; I never hold AWS credentials.
+Not used unless the laptop route is blocked again. It was written when the old account's `ott-dev` was denied by an organisation SCP and a console role session in CloudShell was reported to be able
+to create DynamoDB tables. The account was then replaced (section 'Status update' at the top). Full commands, file list, sizes and the CloudShell limits are in Part B of
+`reports/module9_runbook.md`; the old account's checkpoint-2 evidence is in its "History" part. What exists for the fallback, all tested against a fake AWS and unchanged:
+- `--session-credentials` on `aws_permtest.py` and `aws_teardown.py` (boto3's default credential chain, no profile; the EC2 must-be-denied check is skipped in that mode).
+- Standalone single-file scripts in `scripts/cloudshell/`: `load_dynamodb.py`, `deploy_lambda.py`, `put_zilliz_param.py`. They are also what the laptop route uses for the later steps (run with `AWS_PROFILE=ott-dev`).
+- `scripts/export_dynamodb_items.py` (laptop) writes the load files: 62.3 MiB in four parts of about 16 MiB, about 84,600 write units. The Lambda zip is 49.4 MiB.
+- `infra/iam/console-role-passrole.json`: a `PassRole` statement for a console role; only relevant if the identity running the scripts is not `ott-dev`.
+All the rules above still apply: `ott-*` names only, nothing sensitive printed, no environment variables on the function, IAM-only Function URL, no provisioned concurrency.

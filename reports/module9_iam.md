@@ -18,12 +18,18 @@ Everything uses the placeholder `ACCOUNT_ID`. Replace it yourself when you paste
 - No EC2, no provisioned concurrency, no DynamoDB global tables or backups, nothing outside `eu-central-1` and `ap-south-1`.
 - No list actions except one statement, `ListNamesForTeardownCheck` (`dynamodb:ListTables`, `lambda:ListFunctions`, `logs:DescribeLogGroups`, `ssm:DescribeParameters`), which needs `"Resource": "*"` because those calls cannot be scoped to a name. They only return names, so the teardown check can spot leftovers; every write action stays scoped to `ott-*`. The teardown script itself still deletes by exact name and treats "not found" as "already gone".
 
-## Console steps for you (CP1, manual)
+## Console steps for you (CP1, manual; redone in the NEW standalone account)
+
+The full ordered checklist (root MFA, budget, what NOT to create) is `reports/module9_account_setup.md`; these are its IAM steps. The previous account (under an organisation SCP) was closed.
+The only expected difference now is that the permission tests should pass.
 
 1. IAM > Roles > Create role > Custom trust policy: paste `lambda-trust-policy.json`. Skip managed policies. Name it exactly `ott-recsys-lambda-role`.
 2. Role > Add permissions > Create inline policy > JSON: paste `lambda-exec-role-policy.json` with ACCOUNT_ID replaced. Name it `ott-recsys-lambda-inline`.
 3. IAM > Policies > Create policy > JSON: paste `ott-dev-policy.json` (ACCOUNT_ID replaced) as a **customer managed policy named `ott-dev-serving`** (not an inline policy: see "Why a customer managed policy" below). Then IAM > Users > `ott-dev` (no console access) > attach `ott-dev-serving` > create an access key.
 4. In your own terminal: `aws configure --profile ott-dev`. This project's settings deny me that command and any read of the AWS credential folder.
+
+`ott-dev` gets NO other policy: not `ReadOnlyAccess` (the old account used it temporarily; the teardown check works without it, thanks to the names-only list statement), not any admin policy.
+`infra/iam/console-role-passrole.json` is a fallback-only draft (CloudShell route) and is not needed for the laptop route.
 
 ## Why a customer managed policy, not an inline policy
 
