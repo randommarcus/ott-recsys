@@ -163,7 +163,7 @@ class Client:
                 path = ev.get("rawPath", "/health")
                 req_body = json.loads(ev.get("body") or "{}")
                 live = req_body.get("mode") == "live"
-                body = {"ok": True} if path == "/health" else {"items": [{"position": i} for i in range(1, 21)], "timings_ms": {"server_total": 12.3, "search": 40.0},
+                body = {"ok": True, "models": ["M2", "M3b"], "items": 33392, "live_configured": True} if path == "/health" else {"items": [{"position": i} for i in range(1, 21)], "timings_ms": {"server_total": 12.3, "search": 40.0},
                                                                "diagnostics": {"cold_start": True, "searches": 2 if live else 0,
                                                                                "fallback": w.live_fallback if live else None}}
                 return {"StatusCode": 200, "Payload": io.BytesIO(json.dumps({"statusCode": 200, "body": json.dumps(body)}).encode())}

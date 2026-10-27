@@ -253,7 +253,14 @@ A1/A2 PASS; B skipped by decision (a); verdict PASS. Same 100 users at every lev
 - **Laptop search time with connection reuse: median 241 ms, p90 248 ms, versus 958 / 1,190 ms with a new connection per search (level-5 row of the 100-user study): about 4x faster**, because the TCP and TLS handshakes over the India-Frankfurt link are no longer repeated. Still laptop time, NOT Lambda latency.
 - Checkpoint 3 outcome: three collections loaded (AUTOINDEX, IP); the Lambda will use a write-capable Zilliz key (decision a, a stated limitation); live search at level 5 returns about 92% of the exact candidates and about 93% of the same top-18 as precomputed mode.
 
+## 2026-10-27 — Module 9, checkpoint 4: DEPLOYED in eu-central-1 (run by you from the laptop, profile ott-dev)
+- DynamoDB: `ott-users` and `ott-bandit` created (on-demand); 20,000 user records loaded in four parts; read-back check 40 of 40.
+- SSM: `/ott/zilliz` stored (write-capable key, decision a).
+- Lambda `ott-recsys-serve`: log group with 7-day retention, the 49.4 MiB zip accepted by a DIRECT upload (the size risk did not materialise), active, Function URL with AuthType AWS_IAM. Reserved concurrency 2 refused (`InvalidParameterValueException`, as in the permission test: reduced quota on a new account); optional, not needed.
+- **Smoke test (direct invoke; first numbers, not the latency study):** precomputed M2 200, 20 items, server 155 ms (first recommendation in a new container); precomputed M3b 200, 20 items, 11 ms (warm); LIVE 200, 20 items, server 439 ms of which 333 ms for the two Zilliz searches (first live call in the container: includes reading the SSM parameter and opening the HTTPS connection to Zilliz). The live call did not fall back, so the function reads SSM and reaches Zilliz from inside AWS.
+- `GET /health` showed `ERROR(TypeError)`: a bug in the smoke-test SCRIPT, not in the function (the health response has an `items` field holding the catalog size, a number, and the script tried to count it as a list; my fake response lacked that field). Fixed, the fake now mirrors the real health body, test added.
+
 ## Next
-- **Checkpoint 4 (needs your go):** DynamoDB tables + load, the SSM parameter (from `.env`, write-capable key per decision a), Lambda create + smoke test, in eu-central-1 (runbook Part A steps 1, 3, 4). The probe still holds the junk row; harmless, dropped at teardown (or `--reset-probe`).
+- **Checkpoint 4 close-out (yours to run):** re-run the smoke test once with the fixed script (health line, and a second warm live call). Then checkpoint 5: demo and latency scripts, with latency predictions committed BEFORE any measurement. Resources are live and cost money only when used; tear down after the demo (`aws_teardown.py --confirm DELETE-OTT`, `zilliz_teardown.py --confirm DROP-ZILLIZ`). The Zilliz probe still holds the junk row (harmless).
 - Then checkpoint 5 (demo + latency; scripts still to write, predictions committed first) and 6 (teardown).
 - Test is spent: no more test runs. After serving: the final MBA report using the pre-registered results above.

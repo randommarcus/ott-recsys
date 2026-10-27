@@ -95,7 +95,9 @@ def smoke(session, region, user_id: int) -> int:
                 bad += 1
                 continue
             t = body.get("timings_ms", {})
-            extra = f"{len(body['items'])} items, server {t.get('server_total')} ms, cold start {body['diagnostics']['cold_start']}" if "items" in body else "ok"
+            is_list = isinstance(body, dict) and isinstance(body.get("items"), list)  # /health also has an "items" field: the catalog SIZE (a number)
+            extra = f"{len(body['items'])} items, server {t.get('server_total')} ms, cold start {body['diagnostics']['cold_start']}" if is_list else \
+                f"ok (models: {', '.join(body.get('models', []))}; catalog {body.get('items')} items; live configured: {body.get('live_configured')})"
             diag = body.get("diagnostics", {}) if isinstance(body, dict) else {}
             if "LIVE" in label:
                 if diag.get("fallback"):  # the handler's own text: exception TYPE only, never a message

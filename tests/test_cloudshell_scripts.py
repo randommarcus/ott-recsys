@@ -203,6 +203,7 @@ def test_smoke_checks_live_mode_and_fails_on_a_fallback(capsys):
     assert deploy.main(["--region", "eu-central-1", "smoke"], session_factory=sess(w)) == 0
     out = capsys.readouterr().out
     assert "LIVE (SSM key + Zilliz search)" in out and "2 Zilliz searches, search 40.0 ms" in out
+    assert "ok (models: M2, M3b; catalog 33392 items; live configured: True)" in out, "the real /health body has a numeric 'items' field"
     w.live_fallback = "live retrieval failed (ConfigError); used the precomputed list"
     assert deploy.main(["--region", "eu-central-1", "smoke"], session_factory=sess(w)) == 1
     assert "FELL BACK to precomputed (live retrieval failed (ConfigError)" in capsys.readouterr().out
