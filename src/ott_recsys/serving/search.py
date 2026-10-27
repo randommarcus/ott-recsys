@@ -6,7 +6,7 @@
 * new-release lane: collection movie_items_content, filter is_cold == true (no train like = the lane pool), query = the user's content profile (vec384).
 * users without a two-tower vector get a popularity list from the bundle (no search); users without a content profile get no lane.
 
-The REST call shape follows Zilliz's v2 REST API and is UNVERIFIED until the first real call (checkpoint 3). NumpySearch is an exact local stand-in used by the tests."""
+The REST call shape follows the Zilliz REST v2 docs (searchParams {"metricType": "IP"}, no ef for AUTOINDEX); checked against the real cluster by scripts/verify_zilliz.py. NumpySearch is an exact local stand-in used by the tests."""
 import json
 import urllib.request
 
@@ -28,7 +28,7 @@ class ZillizREST:
 
     def search(self, collection: str, field: str, vec, limit: int, flt: str | None = None):
         body = {"collectionName": collection, "data": [np.asarray(vec, np.float32).tolist()], "annsField": field, "limit": int(limit),
-                "outputFields": ["item_id"], "searchParams": {"metric_type": "IP", "params": {"ef": max(64, int(limit))}}}
+                "outputFields": ["item_id"], "searchParams": {"metricType": "IP"}}  # REST v2 spelling; AUTOINDEX takes no ef
         if flt:
             body["filter"] = flt
         req = urllib.request.Request(self._cfg.uri.rstrip("/") + "/v2/vectordb/entities/search", data=json.dumps(body).encode(), method="POST",
