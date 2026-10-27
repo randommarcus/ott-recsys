@@ -48,7 +48,260 @@ def fig3_1():
     return fig
 
 
-FIGURES = {"fig3_1": (fig3_1, "fig3_1_splits.png")}
+# ---------------------------------------------------------------------------------------------------- saved results
+import json
+import re
+
+TEST = ROOT / "reports" / "module8_test_results.txt"
+LAT = ROOT / "reports" / "module9_latency_results.json"
+# Level study (Module 9, checkpoint 3): run by the project owner on 2026-10-27; numbers as recorded in PROGRESS.md (that table is the only record).
+LEVEL_STUDY = [(1, 87.0, 86.7, 89.9), (3, 87.0, 88.0, 89.9), (5, 91.8, 92.6, 92.9), (7, 91.8, 93.3, 92.9), (10, 91.8, 93.4, 92.9)]
+
+
+def test_rows(section_start: str, n_cols: int) -> dict:
+    """Rows 'name  mean [lo-hi] ...' of a block in the saved test report (first n_cols intervals per row)."""
+    text = TEST.read_text()
+    block = text[text.index(section_start):]
+    block = block[:block.index("\n\n")] if "\n\n" in block else block
+    out = {}
+    for line in block.splitlines()[2:]:
+        nums = re.findall(r"([-\d.]+) \[([-\d.]+)-([-\d.]+)\]", line)
+        if len(nums) >= n_cols:
+            name = re.split(r"\s{2,}", line.strip())[0]
+            out[name] = [tuple(float(x) for x in t) for t in nums[:n_cols]]
+    return out
+
+
+def headline() -> dict:
+    out = {}
+    for line in TEST.read_text().splitlines():
+        m = re.match(r"^(P\d[ab]?)\s.*?:\s+([+-][\d.]+) \[([+-][\d.]+), ([+-][\d.]+)\]", line)
+        if m:
+            out[m.group(1)] = tuple(float(m.group(i)) for i in (2, 3, 4))
+    return out
+
+
+def box(ax, x, y, w, h, text, color, fs=8.5):
+    from matplotlib.patches import FancyBboxPatch
+    ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.02", fc=color, ec="#444444", lw=0.8))
+    ax.text(x + w / 2, y + h / 2, text, ha="center", va="center", fontsize=fs, wrap=True)
+
+
+def arrow(ax, x1, y1, x2, y2):
+    ax.annotate("", xy=(x2, y2), xytext=(x1, y1), arrowprops=dict(arrowstyle="->", color="#444444", lw=1))
+
+
+def fig4_1():
+    """System architecture: offline (laptop, TensorFlow) and online (AWS Lambda) parts."""
+    fig, ax = plt.subplots(figsize=(9, 5.2))
+    ax.set_xlim(0, 10)
+    ax.set_ylim(0, 6)
+    ax.axis("off")
+    ax.text(0.1, 5.75, "OFFLINE (laptop, TensorFlow allowed)", fontsize=10, fontweight="bold")
+    ax.text(5.3, 5.75, "ONLINE (AWS eu-central-1, numpy only)", fontsize=10, fontweight="bold")
+    ax.plot([5.1, 5.1], [0.2, 5.9], color=GREY, ls="--", lw=1)
+    lb, ln, lg = "#dce8f7", "#fde9d4", "#e3f1e6"
+    box(ax, 0.1, 4.6, 2.2, 0.8, "MovieLens 25M sample\n+ TMDB descriptions", lb)
+    box(ax, 2.6, 4.6, 2.3, 0.8, "two-tower (TF/Keras)\nSBERT embeddings", lb)
+    box(ax, 0.1, 3.3, 2.2, 0.8, "NCF (TF/Keras)\nfold-in for new history", lb)
+    box(ax, 2.6, 3.3, 2.3, 0.8, "XGBoost ranker M2\n(and synthetic M3b)", lb)
+    box(ax, 0.1, 1.9, 4.8, 0.9, "export: item vectors, ranker trees as numpy arrays,\n230-slot candidate lists and user records", lb)
+    arrow(ax, 2.3, 5.0, 2.6, 5.0)
+    arrow(ax, 1.2, 4.6, 1.2, 4.1)
+    arrow(ax, 3.75, 4.6, 3.75, 4.1)
+    arrow(ax, 2.5, 3.3, 2.5, 2.8)
+    box(ax, 5.4, 4.6, 2.0, 0.8, "client (laptop)\nIAM-signed request", lg)
+    box(ax, 7.8, 4.4, 2.1, 1.2, "Lambda function\nfeatures + M2 trees\n+ UCB bandit", ln)
+    box(ax, 5.4, 2.9, 2.0, 0.9, "DynamoDB\nott-users, ott-bandit", ln)
+    box(ax, 7.8, 2.9, 2.1, 0.9, "Zilliz (Milvus) vector DB\n(live mode only)", ln)
+    box(ax, 5.4, 1.5, 2.0, 0.9, "SSM parameter\n(Zilliz key, encrypted)", ln)
+    box(ax, 7.8, 1.5, 2.1, 0.9, "CloudWatch logs\n(7-day retention)", ln)
+    arrow(ax, 7.4, 5.0, 7.8, 5.0)
+    arrow(ax, 8.2, 4.4, 6.8, 3.8)
+    arrow(ax, 8.85, 4.4, 8.85, 3.8)
+    arrow(ax, 8.0, 4.4, 6.9, 2.4)
+    arrow(ax, 9.4, 4.4, 9.4, 2.4)
+    arrow(ax, 4.9, 2.35, 5.4, 3.2)
+    ax.text(5.15, 0.55, "Precomputed mode reads the stored 230 candidates from DynamoDB; live mode builds them with two Zilliz searches.\n"
+            "Both modes rank with the same M2 trees and fill 2 of 20 slots with new releases chosen by UCB (c = 0.2).", ha="center", fontsize=8.5)
+    fig.tight_layout()
+    return fig
+
+
+def fig4_2():
+    """From catalog to screen."""
+    fig, ax = plt.subplots(figsize=(8.5, 3.0))
+    stages = [("whole catalog", 33392, BLUE), ("candidates: 200 two-tower\n+ 30 new-release lane", 230, ORANGE), ("shown: 18 ranked by M2\n+ 2 chosen by UCB", 20, GREEN)]
+    for i, (label, n, color) in enumerate(stages):
+        ax.barh(i, n, color=color, height=0.55, log=True)
+        ax.text(n * 1.25, i, f"{n:,}  {label}", va="center", fontsize=9)
+    ax.set_xscale("log")
+    ax.set_xlim(10, 10 ** 7)
+    ax.set_yticks([])
+    ax.invert_yaxis()
+    ax.set_xlabel("number of movies (log scale)")
+    fig.tight_layout()
+    return fig
+
+
+def fig5_1():
+    """Headline results P1-P5 with 95% intervals (saved test report)."""
+    h = headline()
+    fig, (a1, a2) = plt.subplots(1, 2, figsize=(9.5, 3.4), gridspec_kw={"width_ratios": [1.5, 1]})
+    rows = [("P1  M2 ranker vs two-tower order\n(NDCG@10)", "P1"), ("P2  M0 ranker vs two-tower order\n(NDCG@10)", "P2"),
+            ("P3  context gain, M2 vs M0\n(NDCG@10)", "P3"), ("P4  two-tower vs item-kNN\n(Recall@200)", "P4")]
+    for i, (label, k) in enumerate(rows):
+        m, lo, hi = h[k]
+        a1.errorbar(m, i, xerr=[[m - lo], [hi - m]], fmt="o", color=BLUE, capsize=4)
+        a1.text(hi + 0.002, i, f"{m:+.4f}", va="center", fontsize=8.5)
+    a1.axvline(0, color=GREY, lw=1)
+    a1.set_yticks(range(len(rows)))
+    a1.set_yticklabels([r[0] for r in rows], fontsize=8.5)
+    a1.invert_yaxis()
+    a1.set_xlim(-0.005, 0.062)
+    a1.set_xlabel("difference (95% bootstrap interval)")
+    a1.set_title("Test set, 19,530 users", loc="left", fontsize=10)
+    rows2 = [("P5a  UCB c=0.2\nvs UCB1", "P5a"), ("P5b  UCB c=0.2\nvs Thompson", "P5b")]
+    for i, (label, k) in enumerate(rows2):
+        m, lo, hi = h[k]
+        a2.errorbar(m, i, xerr=[[m - lo], [hi - m]], fmt="o", color=ORANGE, capsize=4)
+        a2.text(hi + 6, i, f"{m:+.1f}", va="center", fontsize=8.5)
+    a2.axvline(0, color=GREY, lw=1)
+    a2.set_yticks(range(2))
+    a2.set_yticklabels([r[0] for r in rows2], fontsize=8.5)
+    a2.invert_yaxis()
+    a2.set_ylim(1.6, -0.6)
+    a2.set_xlim(-20, 300)
+    a2.set_xlabel("likes per 1,000 impressions")
+    a2.set_title("SIMULATION, not an A/B test", loc="left", fontsize=10, color=RED)
+    fig.tight_layout()
+    return fig
+
+
+def fig5_2():
+    """Re-ranking the 230-slot lists on the test set: end-to-end NDCG@10 (secondary table of the saved test report)."""
+    r = test_rows("== RE-RANKING THE 230-SLOT LISTS", 1)
+    names = [("random", "random"), ("pop (popularity order, train+val)", "popularity"), ("NCF order, fold-in (primary)", "NCF"),
+             ("tt (two-tower's own order)", "two-tower order"), ("50/50 blend tt+NCF fold-in", "50/50 blend"), ("M0 ranker, no context (fold-in NCF)", "M0 ranker"),
+             ("M1 + hour/day (fold-in)", "M1 (+hour, day)"), ("M2 + session (fold-in NCF) [primary]", "M2 (+session)")]
+    fig, ax = plt.subplots(figsize=(8.5, 3.6))
+    for i, (key, label) in enumerate(names):
+        m, lo, hi = r[key][0]
+        color = GREEN if label.startswith("M") else (BLUE if label in ("two-tower order", "50/50 blend") else GREY)
+        ax.barh(i, m, color=color, height=0.6)
+        ax.errorbar(m, i, xerr=[[m - lo], [hi - m]], fmt="none", color="#333333", capsize=3)
+        ax.text(hi + 0.002, i, f"{m:.4f}", va="center", fontsize=8.5)
+    ax.set_yticks(range(len(names)))
+    ax.set_yticklabels([n[1] for n in names])
+    ax.invert_yaxis()
+    ax.set_xlabel("end-to-end NDCG@10 on the test set (95% interval)")
+    ax.set_xlim(0, 0.2)
+    fig.tight_layout()
+    return fig
+
+
+def fig5_3():
+    """Retrieval over the whole catalog on the test set: Recall@200, warm and cold."""
+    text = TEST.read_text()
+    block = text[text.index("== RETRIEVAL OVER THE WHOLE CATALOG"):].splitlines()[2:6]
+    names, all200, cold200 = [], [], []
+    for line in block:
+        parts = re.split(r"\s{2,}", line.strip())
+        names.append(parts[0])
+        vals = [float(x) for x in parts[1:7]]
+        all200.append(vals[2])
+        cold200.append(vals[5])
+    fig, ax = plt.subplots(figsize=(8, 3.0))
+    y = range(len(names))
+    ax.barh([i - 0.18 for i in y], all200, height=0.35, color=BLUE, label="all test likes")
+    ax.barh([i + 0.18 for i in y], cold200, height=0.35, color=ORANGE, label="likes on movies with no training likes (cold)")
+    for i in y:
+        ax.text(all200[i] + 0.01, i - 0.18, f"{all200[i]:.3f}", va="center", fontsize=8.5)
+        ax.text(cold200[i] + 0.01, i + 0.18, f"{cold200[i]:.3f}", va="center", fontsize=8.5)
+    ax.set_yticks(list(y))
+    ax.set_yticklabels(names)
+    ax.invert_yaxis()
+    ax.set_xlim(0, 0.75)
+    ax.set_xlabel("Recall@200 over the whole catalog, test set")
+    ax.legend(fontsize=8, frameon=False, loc="lower right")
+    fig.tight_layout()
+    return fig
+
+
+def fig5_4():
+    """Bandit simulation on the test window, 629-arm set (SIMULATION, NOT AN A/B TEST)."""
+    text = TEST.read_text()
+    block = text[text.index("-- 629 arms"):]
+    block = block[:block.index("oracle")]
+    rows = []
+    for line in block.splitlines()[2:]:
+        m = re.match(r"^(.+?)\s{2,}([\d.]+) \[([\d.]+)-([\d.]+)\]", line)
+        if m:
+            rows.append((m.group(1).strip(), float(m.group(2)), float(m.group(3)), float(m.group(4))))
+    oracle = float(re.search(r"oracle \(expected\)\s+([\d.]+)", text[text.index("-- 629 arms"):]).group(1))
+    rows.sort(key=lambda r: r[1])
+    fig, ax = plt.subplots(figsize=(8.5, 3.4))
+    for i, (name, m, lo, hi) in enumerate(rows):
+        ax.barh(i, m, color=ORANGE if "0.2" in name else GREY, height=0.6)
+        ax.errorbar(m, i, xerr=[[m - lo], [hi - m]], fmt="none", color="#333333", capsize=3)
+        ax.text(hi + 8, i, f"{m:.0f}", va="center", fontsize=8.5)
+    ax.axvline(oracle, color=GREEN, ls="--", lw=1)
+    ax.text(oracle + 5, len(rows) - 0.6, f"oracle {oracle:.0f}", color=GREEN, fontsize=8.5)
+    ax.set_yticks(range(len(rows)))
+    ax.set_yticklabels([r[0].replace(" (pre-registered)", " (pre-registered)") for r in rows], fontsize=8.5)
+    ax.set_xlim(0, 950)
+    ax.set_xlabel("simulated likes per 1,000 impressions (95% interval over 30 seeds)")
+    ax.set_title("SIMULATION, NOT AN A/B TEST: 629 new releases, 43,064 real session starts", loc="left", fontsize=9.5, color=RED)
+    fig.tight_layout()
+    return fig
+
+
+def fig5_5():
+    """Warm server time by stage, from the saved latency results."""
+    r = json.loads(LAT.read_text())
+    stages = ["user_read", "search", "features", "ranker", "bandit"]
+    labels = {"user_read": "DynamoDB read", "search": "Zilliz search", "features": "features", "ranker": "ranker (351 trees)", "bandit": "bandit"}
+    colors = [BLUE, ORANGE, GREEN, RED, GREY]
+    fig, ax = plt.subplots(figsize=(8.5, 2.6))
+    for i, mode in enumerate(["precomputed", "live"]):
+        left = 0.0
+        for s, c in zip(stages, colors):
+            v = r["warm"][mode]["stage_median_ms"][s]
+            ax.barh(i, v, left=left, color=c, height=0.5, label=labels[s] if i == 0 else None)
+            left += v
+        p50 = r["warm"][mode]["server_ms"]["p50"]
+        ax.text(left + 2, i, f"stage medians sum {left:.0f} ms; server median {p50:.1f} ms", va="center", fontsize=8.5)
+    ax.set_yticks([0, 1])
+    ax.set_yticklabels(["precomputed", "live"])
+    ax.invert_yaxis()
+    ax.set_xlim(0, 210)
+    ax.set_xlabel("milliseconds (median per stage, 200 warm requests per mode)")
+    ax.legend(fontsize=8, frameon=False, ncol=5, loc="upper center", bbox_to_anchor=(0.5, -0.38))
+    fig.tight_layout()
+    return fig
+
+
+def fig5_6():
+    """Zilliz search level study (100 users): recall of the exact candidates and top-18 agreement."""
+    lv = [r[0] for r in LEVEL_STUDY]
+    fig, ax = plt.subplots(figsize=(7.5, 3.0))
+    ax.plot(lv, [r[1] for r in LEVEL_STUDY], "o-", color=BLUE, label="main-lane recall of the exact 200 candidates")
+    ax.plot(lv, [r[2] for r in LEVEL_STUDY], "s-", color=ORANGE, label="new-release lane recall")
+    ax.plot(lv, [r[3] for r in LEVEL_STUDY], "^-", color=GREEN, label="top-18 shown to the user, live vs precomputed")
+    ax.set_xticks(lv)
+    ax.set_xlabel("Zilliz AUTOINDEX search level")
+    ax.set_ylabel("%")
+    ax.set_ylim(80, 100)
+    ax.axvline(5, color=GREY, ls="--", lw=1)
+    ax.text(5.15, 81, "chosen: level 5", fontsize=8.5, color="#555555")
+    ax.legend(fontsize=8, frameon=False, loc="lower right")
+    fig.tight_layout()
+    return fig
+
+
+FIGURES = {"fig3_1": (fig3_1, "fig3_1_splits.png"), "fig4_1": (fig4_1, "fig4_1_architecture.png"), "fig4_2": (fig4_2, "fig4_2_funnel.png"),
+           "fig5_1": (fig5_1, "fig5_1_headline.png"), "fig5_2": (fig5_2, "fig5_2_reranking.png"), "fig5_3": (fig5_3, "fig5_3_retrieval.png"),
+           "fig5_4": (fig5_4, "fig5_4_bandit.png"), "fig5_5": (fig5_5, "fig5_5_latency.png"), "fig5_6": (fig5_6, "fig5_6_levels.png")}
 
 
 def main(argv=None) -> int:
