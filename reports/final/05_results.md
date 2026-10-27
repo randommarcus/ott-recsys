@@ -82,13 +82,13 @@ The synthetic scenario also says something useful about scale. A fairly strong p
 
 *All numbers in this section come from a SIMULATION, NOT AN A/B TEST.*
 
-The bandit simulation on the test window used 2,830 new releases and 43,064 real session starts between March 2017 and November 2019. Figure 5.4 shows the main set of 629 titles that had at least five ratings in the window.
+The bandit simulation on the test window used 2,830 new releases and 43,064 real session starts between March 2017 and November 2019. Figure 5.4 shows the main set: the 761 titles with at least five ratings in the test window (the same rule gave 629 titles in the validation window, where the constant was tuned).
 
-![Figure 5.4 Simulated likes per 1,000 impressions on the 629-title set, test window (SIMULATION, NOT AN A/B TEST)](figures/fig5_4_bandit.png)
+![Figure 5.4 Simulated likes per 1,000 impressions on the 761 titles with at least five ratings, test window (SIMULATION, NOT AN A/B TEST)](figures/fig5_4_bandit.png)
 
 The best possible strategy, one that already knows every title's true like rate, earns 833 likes per 1,000 impressions. Showing titles at random earns 372. Measured against that gap, UCB with c = 0.2 captured 94% of the possible gain, Thompson sampling 87% and textbook UCB1 only 43%. Plain greedy (always show the current best) got stuck early on titles that only looked good.
 
-The same ordering held on the smaller set of 239 well-rated titles and on the larger set of 2,031 titles. On the larger set, UCB1 did even worse (484, barely above random at 386), because its bonus keeps it exploring hundreds of thin titles.
+The same ordering held on the smaller set of 266 titles with at least 20 ratings and on the full set of 2,830 titles with at least one rating. On the larger set, UCB1 did even worse (484, barely above random at 386), because its bonus keeps it exploring hundreds of thin titles.
 
 There is a trade-off hidden in these numbers. UCB with a small constant concentrates impressions on a few titles: its exposure Gini coefficient is 0.98, against 0.90 for Thompson sampling. Every title did get shown at least once, but most impressions went to the leaders. For a platform that also cares about giving each new release a fair chance, Thompson sampling is a reasonable alternative that earns a little less (Chapter 6).
 

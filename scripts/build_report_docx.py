@@ -86,7 +86,66 @@ def flush_table(doc, rows):
     doc.add_paragraph()
 
 
-def add_chapter(doc, path: Path, first: bool):
+def captions(files):
+    """Figure and table titles in document order, for the generated lists."""
+    figs, tabs = [], []
+    for f in files:
+        for line in f.read_text().splitlines():
+            m = re.match(r"^!\[(Figure [A-Z0-9]+\.\d+) (.*)\]\(", line.strip())
+            if m:
+                figs.append(f"{m.group(1)}  {m.group(2)}")
+            t = re.match(r"^\*\*(Table [A-Z0-9]+\.\d+)\*\* \*(.*)\*\s*$", line.strip())
+            if t:
+                tabs.append(f"{t.group(1)}  {t.group(2)}")
+    return figs, tabs
+
+
+def add_toc(doc):
+    p = doc.add_paragraph()
+    run = p.add_run()
+    for tag, text in (("begin", None), (None, 'TOC \\o "1-2" \\h \\z \\u'), ("separate", None)):
+        if tag:
+            el = OxmlElement("w:fldChar")
+            el.set(qn("w:fldCharType"), tag)
+        else:
+            el = OxmlElement("w:instrText")
+            el.set(qn("xml:space"), "preserve")
+            el.text = text
+        run._r.append(el)
+    run2 = p.add_run("Right-click here and choose Update Field (or press F9) to build the table of contents.")
+    run2.italic = True
+    end = OxmlElement("w:fldChar")
+    end.set(qn("w:fldCharType"), "end")
+    run2._r.append(end)
+
+
+def ask_word_to_update_fields(doc):
+    settings = doc.settings.element
+    el = OxmlElement("w:updateFields")
+    el.set(qn("w:val"), "true")
+    settings.append(el)
+
+
+def add_title_page(doc, path: Path):
+    lines = [l for l in path.read_text().splitlines() if l.strip() and not l.strip().startswith("<!--")]
+    for i, line in enumerate(lines):
+        if line.strip() == "[[GAP]]":
+            for _ in range(3):
+                doc.add_paragraph()
+            continue
+        p = doc.add_paragraph()
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        text = line.strip()
+        bold = text.startswith("**") and text.endswith("**")
+        run = p.add_run(text.strip("*"))
+        run.bold = bold or i == 0
+        run.font.size = Pt(18 if i == 0 else 13 if bold else 12)
+
+
+def add_chapter(doc, path: Path, first: bool, all_files=()):
+    if "<!-- titlepage -->" in path.read_text():
+        add_title_page(doc, path)
+        return
     lines = path.read_text().splitlines()
     table, para = [], []
 
@@ -106,6 +165,19 @@ def add_chapter(doc, path: Path, first: bool):
             table = []
         m = re.match(r"^(#{1,3}) (.*)", line)
         img = re.match(r"^!\[(.*)\]\((.*)\)\s*$", line.strip())
+        if line.strip() in ("[[TOC]]", "[[LIST_OF_FIGURES]]", "[[LIST_OF_TABLES]]", "<!-- pagebreak -->"):
+            flush_para()
+            if line.strip() == "[[TOC]]":
+                add_toc(doc)
+            elif line.strip() == "<!-- pagebreak -->":
+                doc.add_page_break()
+            else:
+                figs, tabs = captions(all_files)
+                for entry in (figs if "FIGURES" in line else tabs):
+                    q = doc.add_paragraph(entry)
+                    q.paragraph_format.line_spacing = 1.15
+                    q.paragraph_format.space_after = Pt(2)
+            continue
         if m:
             flush_para()
             if len(m.group(1)) == 1 and not first:
@@ -147,8 +219,9 @@ def main(argv=None) -> int:
     files = [FINAL / f for f in args.files] if args.files else sorted(p for p in FINAL.glob("[0-9][0-9]_*.md"))
     doc = Document()
     setup(doc)
+    ask_word_to_update_fields(doc)
     for i, f in enumerate(files):
-        add_chapter(doc, f, first=(i == 0))
+        add_chapter(doc, f, first=(i == 0), all_files=files)
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     doc.save(out)

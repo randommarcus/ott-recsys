@@ -134,7 +134,7 @@ The bandit was judged on the calendar split from Section 3.5, because that is wh
 
 ### Tuning the constant without cheating
 
-The textbook UCB1 constant explored far too much with hundreds of titles. So I tuned c on the first half of the validation request stream and evaluated on the second half, with different random seeds. The chosen value for the main set of 629 titles was c = 0.2, and the second half confirmed it. That value was then fixed in the test protocol before the test was opened.
+The textbook UCB1 constant explored far too much with hundreds of titles. So I tuned c on the first half of the validation request stream and evaluated on the second half, with different random seeds. The chosen value for the main set (629 titles with at least five ratings in the validation window) was c = 0.2, and the second half confirmed it. That value was then fixed in the test protocol before the test was opened.
 
 ### What the shelf costs
 

@@ -251,7 +251,8 @@ def fig5_4():
     ax.set_yticklabels([r[0].replace(" (pre-registered)", " (pre-registered)") for r in rows], fontsize=8.5)
     ax.set_xlim(0, 950)
     ax.set_xlabel("simulated likes per 1,000 impressions (95% interval over 30 seeds)")
-    ax.set_title("SIMULATION, NOT AN A/B TEST: 629 new releases, 43,064 real session starts", loc="left", fontsize=9.5, color=RED)
+    n_arms = re.search(r"-- 629 arms \(>=5 ratings\) \((\d+) arms\)", text).group(1)
+    ax.set_title(f"SIMULATION, NOT AN A/B TEST: {n_arms} new releases with at least 5 ratings, 43,064 real session starts", loc="left", fontsize=9.5, color=RED)
     fig.tight_layout()
     return fig
 
@@ -299,7 +300,67 @@ def fig5_6():
     return fig
 
 
-FIGURES = {"fig3_1": (fig3_1, "fig3_1_splits.png"), "fig4_1": (fig4_1, "fig4_1_architecture.png"), "fig4_2": (fig4_2, "fig4_2_funnel.png"),
+DEMO = ROOT / "reports" / "module9_demo.html"
+
+
+def demo_section_b():
+    """The two ranked lists (tv, mobile) of section B of the saved demo page, with the Drama-without-Comedy marks."""
+    from html.parser import HTMLParser
+    text = DEMO.read_text()
+    part = text[text.index("<h2>B."):text.index("<h2>C.")]
+
+    class P(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.tables, self.row, self.cell, self.mark = [], None, None, False
+
+        def handle_starttag(self, tag, attrs):
+            a = dict(attrs)
+            if tag == "table":
+                self.tables.append([])
+            elif tag == "tr":
+                self.row, self.mark = [], a.get("class") == "mark"
+            elif tag == "td" and self.row is not None:
+                self.cell = ""
+
+        def handle_endtag(self, tag):
+            if tag == "td" and self.cell is not None:
+                self.row.append(self.cell)
+                self.cell = None
+            elif tag == "tr" and self.row:
+                self.tables[-1].append((self.row, self.mark))
+                self.row = None
+
+        def handle_data(self, data):
+            if self.cell is not None:
+                self.cell += data
+    p = P()
+    p.feed(part)
+    avg = re.search(r"M3b tv <b>([\d.]+)</b>, M3b mobile <b>([\d.]+)</b>, M2 \(ignores device\) <b>([\d.]+)</b>", part).groups()
+    return p.tables[:2], avg
+
+
+def figF_1():
+    """Section B of the demo page (synthetic device scenario), re-drawn from the saved page."""
+    (tv, mob), avg = demo_section_b()
+    fig, axes = plt.subplots(1, 2, figsize=(9, 6.2))
+    fig.suptitle("Synthetic device effect, pipeline demonstration, not a finding", color=RED, fontsize=12, fontweight="bold", y=0.985)
+    for ax, rows, label in ((axes[0], tv, "SIMULATED device = tv"), (axes[1], mob, "SIMULATED device = mobile")):
+        ax.axis("off")
+        ax.set_title(f"{label}\n{sum(m for _, m in rows)} of 18 are Drama-without-Comedy", fontsize=9.5, loc="left")
+        for i, (cells, marked) in enumerate(rows):
+            y = 1 - (i + 1) / 19.5
+            if marked:
+                ax.add_patch(plt.Rectangle((0, y - 0.022), 1, 0.045, color="#fde2e2", transform=ax.transAxes, clip_on=False))
+            ax.text(0.02, y, cells[0], transform=ax.transAxes, fontsize=8.5, va="center")
+            ax.text(0.10, y, cells[1][:44], transform=ax.transAxes, fontsize=8.5, va="center")
+    fig.text(0.5, 0.015, f"Shaded rows: Drama-without-Comedy titles. One sampled user shown (MovieLens titles).\n"
+             f"Average over 40 users: M3b tv {avg[0]}, M3b mobile {avg[1]}, M2 (ignores device) {avg[2]}.", ha="center", fontsize=8.5)
+    fig.tight_layout(rect=(0, 0.06, 1, 0.96))
+    return fig
+
+
+FIGURES = {"fig3_1": (fig3_1, "fig3_1_splits.png"), "figF_1": (figF_1, "figF_1_demo_m3b.png"), "fig4_1": (fig4_1, "fig4_1_architecture.png"), "fig4_2": (fig4_2, "fig4_2_funnel.png"),
            "fig5_1": (fig5_1, "fig5_1_headline.png"), "fig5_2": (fig5_2, "fig5_2_reranking.png"), "fig5_3": (fig5_3, "fig5_3_retrieval.png"),
            "fig5_4": (fig5_4, "fig5_4_bandit.png"), "fig5_5": (fig5_5, "fig5_5_latency.png"), "fig5_6": (fig5_6, "fig5_6_levels.png")}
 

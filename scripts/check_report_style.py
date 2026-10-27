@@ -19,7 +19,7 @@ BANNED = ["delve", "tapestry", "landscape", "realm", "robust", "leverage", "seam
           "valuable insights", "vibrant", "empower", "empowers", "streamline", "synergy", "paradigm", "noteworthy", "commendable", "remarkable",
           "ultimately", "plays a role", "a wide range of", "in the world of"]
 SKIP = {"STYLE.md"}  # the style guide lists the banned words on purpose
-TITLES_ONLY = {"99_references.md"}  # paper titles must be quoted exactly (one contains "Robust"): only dashes are checked there
+TITLES_ONLY = {"90_references.md"}  # paper titles must be quoted exactly (one contains "Robust"): only dashes are checked there
 
 
 def check_text(text: str, dashes_only: bool = False) -> list:
