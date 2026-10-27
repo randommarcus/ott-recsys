@@ -247,8 +247,13 @@ A1/A2 PASS; B skipped by decision (a); verdict PASS. Same 100 users at every lev
 - Lambda zip rebuilt: 51,798,803 bytes = 49.40 MiB, about 0.6 MiB under the 50 MiB limit; smoke test identical.
 - Not yet confirmed against the real cluster: the new transport (a quick `verify_zilliz.py --skip-write-test --level 5` run does that).
 
+## 2026-10-27 — Module 9, checkpoint 3 CLOSED (run by you)
+- `verify_zilliz.py --skip-write-test --level 5`: A1 and A2 PASS at level 5 (10/10 and 30/30 identical between pymilvus and the Lambda's REST client): the connection-reusing client works on the real cluster.
+- Short study at level 5 (30 users): main recall 92.5%, lane recall 92.1%, handler top-18 overlap 91.9% (same set 4/30, same order 0/30), in line with the 100-user level-5 row (91.8% / 92.6% / 92.9%).
+- **Laptop search time with connection reuse: median 241 ms, p90 248 ms, versus 958 / 1,190 ms with a new connection per search (level-5 row of the 100-user study): about 4x faster**, because the TCP and TLS handshakes over the India-Frankfurt link are no longer repeated. Still laptop time, NOT Lambda latency.
+- Checkpoint 3 outcome: three collections loaded (AUTOINDEX, IP); the Lambda will use a write-capable Zilliz key (decision a, a stated limitation); live search at level 5 returns about 92% of the exact candidates and about 93% of the same top-18 as precomputed mode.
+
 ## Next
-- **Checkpoint 3 close-out (yours to run):** `verify_zilliz.py --skip-write-test --level 5` (confirms the new connection-reusing client on the real cluster), optionally a short study at level 5 to see the laptop time with connection reuse; then checkpoint 4. The probe still holds the junk row; harmless, dropped at teardown (or `--reset-probe`).
-- **Checkpoint 4 (needs your go):** tables + data load, SSM parameter, Lambda, smoke test (commands in `reports/module9_runbook.md`, Part A). Region eu-central-1. Cost under $0.50 expected; everything is torn down after the demo (Free-plan accounts close when credits or six months run out).
+- **Checkpoint 4 (needs your go):** DynamoDB tables + load, the SSM parameter (from `.env`, write-capable key per decision a), Lambda create + smoke test, in eu-central-1 (runbook Part A steps 1, 3, 4). The probe still holds the junk row; harmless, dropped at teardown (or `--reset-probe`).
 - Then checkpoint 5 (demo + latency; scripts still to write, predictions committed first) and 6 (teardown).
 - Test is spent: no more test runs. After serving: the final MBA report using the pre-registered results above.
