@@ -138,6 +138,10 @@ Figures are drawn only from saved results in `reports/`. `scripts/check_report_s
 
 Most of the code, the tests and the first drafts of the reports were written with Claude Code (Anthropic) under my direction. I chose the design at each step, approved every cost, and ran every cloud command myself. Details are in Appendix H of the report.
 
+## License
+
+The code is released under the [MIT License](LICENSE). The license covers this repository's code and reports only, not MovieLens or TMDB data, which keep their own terms (see Data Credits).
+
 ## Author
 
 Sudarshan, MBA Business Analytics, Semester 4.
