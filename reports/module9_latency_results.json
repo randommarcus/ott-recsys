@@ -1,0 +1,271 @@
+{
+ "region": "eu-central-1",
+ "users": 200,
+ "connect_ms": {
+  "n": 20,
+  "p50": 492.206097498638,
+  "p50_ci": [
+   487.01231500126596,
+   512.9421180026839
+  ],
+  "p95": 569.1080431510273,
+  "p95_ci": [
+   528.3870091494464,
+   795.142458002374
+  ],
+  "p99": 749.9355750321043,
+  "max": 795.142458002374
+ },
+ "cold": [
+  {
+   "mode": "precomputed",
+   "status": 200,
+   "init_ms": 583.25,
+   "duration_ms": 1466.7,
+   "max_memory_mb": 204.0,
+   "server_ms": 178.316,
+   "fallback": false
+  },
+  {
+   "mode": "live",
+   "status": 200,
+   "init_ms": 559.82,
+   "duration_ms": 1689.12,
+   "max_memory_mb": 220.0,
+   "server_ms": 468.004,
+   "fallback": false
+  },
+  {
+   "mode": "precomputed",
+   "status": 200,
+   "init_ms": 601.27,
+   "duration_ms": 1486.73,
+   "max_memory_mb": 204.0,
+   "server_ms": 193.756,
+   "fallback": false
+  },
+  {
+   "mode": "live",
+   "status": 200,
+   "init_ms": 505.29,
+   "duration_ms": 2070.92,
+   "max_memory_mb": 220.0,
+   "server_ms": 496.46,
+   "fallback": false
+  },
+  {
+   "mode": "precomputed",
+   "status": 200,
+   "init_ms": 512.99,
+   "duration_ms": 1759.35,
+   "max_memory_mb": 204.0,
+   "server_ms": 177.06,
+   "fallback": false
+  },
+  {
+   "mode": "live",
+   "status": 200,
+   "init_ms": 589.57,
+   "duration_ms": 1792.37,
+   "max_memory_mb": 219.0,
+   "server_ms": 473.725,
+   "fallback": false
+  },
+  {
+   "mode": "precomputed",
+   "status": 200,
+   "init_ms": 625.46,
+   "duration_ms": 1565.92,
+   "max_memory_mb": 204.0,
+   "server_ms": 171.274,
+   "fallback": false
+  },
+  {
+   "mode": "live",
+   "status": 200,
+   "init_ms": 560.97,
+   "duration_ms": 1730.31,
+   "max_memory_mb": 220.0,
+   "server_ms": 441.191,
+   "fallback": false
+  },
+  {
+   "mode": "precomputed",
+   "status": 200,
+   "init_ms": 551.04,
+   "duration_ms": 1386.77,
+   "max_memory_mb": 204.0,
+   "server_ms": 135.612,
+   "fallback": false
+  },
+  {
+   "mode": "live",
+   "status": 200,
+   "init_ms": 610.51,
+   "duration_ms": 1786.32,
+   "max_memory_mb": 220.0,
+   "server_ms": 474.819,
+   "fallback": false
+  }
+ ],
+ "warm": {
+  "precomputed": {
+   "server_ms": {
+    "n": 200,
+    "p50": 91.1435,
+    "p50_ci": [
+     85.8860875,
+     96.40045
+    ],
+    "p95": 118.5155,
+    "p95_ci": [
+     108.594,
+     120.70354999999999
+    ],
+    "p99": 121.67396999999995,
+    "max": 138.788
+   },
+   "client_ms": {
+    "n": 200,
+    "p50": 338.3791084979748,
+    "p50_ci": [
+     337.2578884991526,
+     339.20520600077
+    ],
+    "p95": 360.5161954976211,
+    "p95_ci": [
+     358.5504922510154,
+     375.4454629997781
+    ],
+    "p99": 381.6725842295273,
+    "max": 387.2462569997879
+   },
+   "errors": 0,
+   "fallbacks": 0,
+   "stage_median_ms": {
+    "user_read": 3.2355,
+    "search": 0.001,
+    "features": 1.752,
+    "ranker": 77.79599999999999,
+    "bandit": 0.0995
+   }
+  },
+  "live": {
+   "server_ms": {
+    "n": 200,
+    "p50": 121.888,
+    "p50_ci": [
+     121.1961625,
+     123.559
+    ],
+    "p95": 144.18159999999997,
+    "p95_ci": [
+     141.08329999999998,
+     157.30945
+    ],
+    "p99": 163.85610999999983,
+    "max": 223.71
+   },
+   "client_ms": {
+    "n": 200,
+    "p50": 367.44525900030567,
+    "p50_ci": [
+     362.51476000143157,
+     375.9159114997601
+    ],
+    "p95": 399.56944080076937,
+    "p95_ci": [
+     394.09442599935574,
+     423.4332279993396
+    ],
+    "p99": 437.28574891942117,
+    "max": 474.7597190034867
+   },
+   "errors": 0,
+   "fallbacks": 0,
+   "stage_median_ms": {
+    "user_read": 3.2395,
+    "search": 34.372,
+    "features": 1.6395,
+    "ranker": 76.136,
+    "bandit": 3.3280000000000003
+   }
+  }
+ },
+ "headline": {
+  "warm_precomputed_server_p50": 91.1435,
+  "warm_live_server_p50": 121.888,
+  "warm_live_minus_precomputed_p50": 30.744500000000002,
+  "warm_precomputed_client_p50": 338.3791084979748,
+  "cold_init_p50": 572.11,
+  "max_memory_mb": 220.0,
+  "connect_p50": 492.206097498638,
+  "live_fallbacks": 0
+ },
+ "vs_predictions": [
+  {
+   "id": "L1",
+   "what": "warm server, precomputed, median (ms)",
+   "low": 8,
+   "high": 30,
+   "measured": 91.1435,
+   "verdict": "MISS"
+  },
+  {
+   "id": "L2",
+   "what": "warm server, live, median (ms)",
+   "low": 25,
+   "high": 150,
+   "measured": 121.888,
+   "verdict": "inside"
+  },
+  {
+   "id": "L3",
+   "what": "live minus precomputed, medians (ms)",
+   "low": 15,
+   "high": 130,
+   "measured": 30.744500000000002,
+   "verdict": "inside"
+  },
+  {
+   "id": "L4",
+   "what": "laptop end-to-end, precomputed, median (ms)",
+   "low": 150,
+   "high": 500,
+   "measured": 338.3791084979748,
+   "verdict": "inside"
+  },
+  {
+   "id": "L5",
+   "what": "cold start Init Duration, median (ms)",
+   "low": 800,
+   "high": 3000,
+   "measured": 572.11,
+   "verdict": "MISS"
+  },
+  {
+   "id": "L6",
+   "what": "max memory used (MB)",
+   "low": 150,
+   "high": 450,
+   "measured": 220.0,
+   "verdict": "inside"
+  },
+  {
+   "id": "L7",
+   "what": "laptop TCP+TLS connect, median (ms)",
+   "low": 100,
+   "high": 400,
+   "measured": 492.206097498638,
+   "verdict": "MISS"
+  },
+  {
+   "id": "L8",
+   "what": "live fallbacks during the warm run",
+   "low": 0,
+   "high": 0,
+   "measured": 0,
+   "verdict": "inside"
+  }
+ ]
+}

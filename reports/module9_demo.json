@@ -1,0 +1,14 @@
+{
+ "user": "a sampled MovieLens user (id shown on the page)",
+ "region": "eu-central-1",
+ "A_changed_titles": 2,
+ "B_mean_drama_without_comedy_in_top18": {
+  "M3b tv": 5.925,
+  "M3b mobile": 3.5,
+  "M2": 6.675
+ },
+ "C_top18_overlap": 16,
+ "C_live_fallback": null,
+ "D_impressions": 145,
+ "D_simulated_like_rate": 0.4
+}
