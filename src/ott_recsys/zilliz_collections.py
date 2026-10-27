@@ -38,16 +38,31 @@ def load_env() -> None:
 def quiet():
     """Swallow library stdout/stderr, logging and warnings for the duration (messages can contain the endpoint)."""
     sink = io.StringIO()
+    previous = logging.root.manager.disable  # restore exactly this afterwards, never a blanket "everything on"
     logging.disable(logging.CRITICAL)
     with warnings.catch_warnings(), contextlib.redirect_stdout(sink), contextlib.redirect_stderr(sink):
         warnings.simplefilter("ignore")
         try:
             yield
         finally:
-            logging.disable(logging.NOTSET)
+            logging.disable(previous)
+
+
+def silence_pymilvus_logging() -> None:
+    """pymilvus attaches StreamHandlers bound to whatever stderr exists when it is first imported. Replace them with NullHandlers so the library
+    can never print (its messages can contain the endpoint) and never writes to a stream that has since been closed."""
+    with quiet():
+        import pymilvus  # noqa: F401  (import inside quiet so nothing is printed on import)
+    for name, lg in list(logging.Logger.manager.loggerDict.items()):
+        if name.startswith("pymilvus") and isinstance(lg, logging.Logger):
+            for h in list(lg.handlers):
+                lg.removeHandler(h)
+            lg.addHandler(logging.NullHandler())
+            lg.propagate = False
 
 
 def default_client_factory(endpoint: str, key: str):
+    silence_pymilvus_logging()
     from pymilvus import MilvusClient
     return MilvusClient(uri=endpoint, token=key, timeout=30)
 
@@ -102,6 +117,7 @@ def rows(cols: dict, a: int, b: int) -> list:
 # ------------------------------------------------------------------------------------------------ schema + index
 def create(client, name: str) -> None:
     """Create one collection with its schema and an AUTOINDEX (metric IP) on every vector field."""
+    silence_pymilvus_logging()
     from pymilvus import DataType
     spec = SPEC[name]
     schema = client.create_schema(auto_id=False, enable_dynamic_field=False)

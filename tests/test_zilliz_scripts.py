@@ -10,6 +10,9 @@ import urllib.request
 from pathlib import Path
 
 import numpy as np
+import pymilvus  # noqa: F401  Imported at COLLECTION time on purpose: importing pymilvus runs logging.config.dictConfig, which closes every
+#                 existing log handler. If TensorFlow (tests/test_environment.py) has already attached absl's handler to pytest's captured stderr,
+#                 a later first import of pymilvus would close pytest's stream and crash the run. The scripts never import TensorFlow (tested below).
 import pytest
 
 from ott_recsys import zilliz_collections as zc
@@ -167,6 +170,24 @@ def test_export_integrity_and_plain_rows():
         assert len(cols["item_id"]) == zc.SPEC[name]["rows"]
         row = zc.rows(cols, 0, 1)[0]
         assert all(not isinstance(v, np.generic) for v in row.values())
+
+
+def test_pymilvus_logging_is_silenced_and_never_bound_to_a_stream():
+    import logging
+    zc.silence_pymilvus_logging()
+    for name, lg in logging.Logger.manager.loggerDict.items():
+        if name.startswith("pymilvus") and isinstance(lg, logging.Logger):
+            assert lg.propagate is False and all(isinstance(h, logging.NullHandler) for h in lg.handlers), name
+
+
+def test_zilliz_scripts_never_import_tensorflow():
+    """pymilvus' import closes all existing log handlers; with TensorFlow's absl handler on the real stderr that would close stderr itself."""
+    code = ("import importlib.util, sys\n"
+            "for p in ('scripts/load_zilliz.py', 'scripts/verify_zilliz.py', 'scripts/zilliz_teardown.py'):\n"
+            "    spec = importlib.util.spec_from_file_location('m', p); m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)\n"
+            "print('tensorflow' in sys.modules, 'absl.logging' in sys.modules)\n")
+    r = subprocess.run([sys.executable, "-I", "-c", code], capture_output=True, text=True, cwd=ROOT, timeout=120)
+    assert r.returncode == 0 and r.stdout.strip() == "False False", r.stdout + r.stderr[-300:]
 
 
 def test_permission_word_detection():
