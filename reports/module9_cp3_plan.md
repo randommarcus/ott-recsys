@@ -74,3 +74,10 @@ Rollback at any time: `zilliz_teardown.py --confirm DROP-ZILLIZ` or delete the c
 - **Long suspension of a free cluster (official docs, read 2026-10-27):** free clusters are suspended automatically, with notice, after 7 consecutive days without activity and "can be resumed at any time"; a deleted free cluster cannot be restored from the recycle bin; each organisation has one free cluster.
   **Not confirmed by any page I could reach:** whether a free cluster that stays suspended for a long time is eventually deleted (no number of days is given), and whether its data is kept while suspended (one FAQ says suspended clusters are charged only for storage, which suggests the data stays, but that is said for paid clusters).
   The support article "What happens to my inactive clusters" refused automated access, so check it in a browser. Practical rule: resume and run the verification before the demo; if the collections are gone, `load_zilliz.py` rebuilds them in minutes.
+
+## 10. Key decision
+**Decision 2026-10-27 (option a):** two separately created "read-only" keys could both insert on this Free cluster, so the Lambda will use a WRITE-CAPABLE key, kept
+separate from the admin key so it can be revoked on its own. Mitigations: the Lambda code never sends a write; the key lives only in `.env` (as `ZILLIZ_TOKEN_READONLY`, name
+kept for continuity) and later in the one SSM SecureString `/ott/zilliz`, readable only by the Lambda role; it is restricted to this cluster, which holds nothing but the three
+project collections; those rebuild from the exports in about 3 minutes (`load_zilliz.py --recreate`). Stated as a limitation in the write-up. `verify_zilliz.py --skip-write-test`
+skips the write test (nothing is written) and judges only the searches.

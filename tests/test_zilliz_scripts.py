@@ -412,6 +412,31 @@ def test_level_study_shows_lower_recall_at_low_levels(env, monkeypatch, capsys):
     assert "same set 15/15" in lines[5] and "same set 15/15" not in lines[1]
 
 
+@pytest.mark.skipif(not HAVE_SERVING, reason="serving artifacts not built")
+def test_level_study_reports_progress_with_time_left(env, monkeypatch, capsys):
+    s = loaded_store()
+    monkeypatch.setattr(urllib.request, "urlopen", rest_fake(s))
+    verifier.main(["--recall", "--skip-write-test", "--users", "40", "--levels", "1,3"], client_factory=factory(s))
+    out = capsys.readouterr().out
+    prog = [l for l in out.splitlines() if "users," in l and "left in the study" in l]
+    assert [l.split(":")[1].split(",")[0].strip() for l in prog] == ["20/40 users", "40/40 users"] * 2
+    assert prog[-1].rstrip().endswith("about 0s left in the study")
+    assert out.index("level 1: searching") < out.index("level  1: main recall") < out.index("level 3: searching"), "each level's result must print as soon as it is done"
+
+
+@real
+def test_skip_write_test_writes_nothing_and_judges_only_search(env, monkeypatch, capsys):
+    s = loaded_store()
+    s.ro_can_write = True  # the situation found on the real cluster: the "read-only" key can write
+    monkeypatch.setattr(urllib.request, "urlopen", rest_fake(s))
+    s.calls.clear()
+    assert verifier.main(["--skip-write-test"], client_factory=factory(s)) == 0
+    out = capsys.readouterr().out
+    assert "B write test: SKIPPED" in out and "verdict: PASS (A1 ok, A2 ok; B skipped)" in out and not clean(out)
+    assert s.calls == [] and len(s.cols[zc.PROBE]["rows"]) == 1, "no write may even be attempted"
+    assert verifier.main([], client_factory=factory(s)) == 1, "without the flag the write test still runs and fails for a writable key"
+
+
 def test_levels_option_is_validated(env):
     for bad in ("0,5", "1,11", "x"):
         with pytest.raises(SystemExit):

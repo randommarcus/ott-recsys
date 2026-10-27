@@ -76,6 +76,9 @@ AWS_PROFILE=ott-dev .venv/bin/python scripts/cloudshell/load_dynamodb.py --regio
    `--confirm LOAD-ZILLIZ --reset-probe` (uses the full-access key; touches only `ott_write_probe`), then re-run `verify_zilliz.py --recall`.
    `--recall` now runs the level study: Zilliz search `level` 1, 3, 5, 7 and 10 on the same 100 users (recall vs the exact lists, laptop-measured search time that is
    NOT Lambda latency, and the handler's top-18 live vs precomputed). About 1,000 REST searches; expect several minutes. `--level N` runs A1/A2 at level N.
+   **Since the 2026-10-27 key decision (option a, the key is write-capable):** run `.venv/bin/python scripts/verify_zilliz.py --skip-write-test --recall`. It prints a
+   progress line every 20 users with a rough time left, and each level's result as soon as that level is done; the verdict covers A1 and A2 only.
+   Pausing with Ctrl+Z does not stop it (use Ctrl+C, or `jobs -l` then `kill %N`).
 3. **Zilliz settings for the function** (reads `ZILLIZ_URI` and `ZILLIZ_TOKEN_READONLY` from `.env` inside Python, prints only `stored: yes/no`; refuses a blank key or the full-access key):
 ```bash
 .venv/bin/python scripts/put_ssm_secrets.py --region eu-central-1

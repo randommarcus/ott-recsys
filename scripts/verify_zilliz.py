@@ -3,6 +3,7 @@
     python scripts/verify_zilliz.py             # A1 + A2 + B
     python scripts/verify_zilliz.py --recall    # also C: the level study (levels 1, 3, 5, 7, 10) on 100 users
     python scripts/verify_zilliz.py --level 7   # run A1/A2 at an explicit search level (default: none sent = server default)
+    python scripts/verify_zilliz.py --skip-write-test --recall   # the key is known to be write-capable (accepted 2026-10-27): skip B, run the study
 
 A1  search through pymilvus: two-tower top-10 (the query item must come back first), content lane top-30 with filter is_cold == true (all must be cold),
     content vec64 top-5.
@@ -120,7 +121,8 @@ def top18(resp) -> list:
     return [x["movie_id"] for x in resp["items"] if x["source"] == "ranker"][:18]
 
 
-def level_study(endpoint: str, key: str, levels, n_users: int = 100, seed: int = 0) -> list:
+def level_study(endpoint: str, key: str, levels, n_users: int = 100, seed: int = 0, progress=print, every: int = 20):
+    """Yields one result row per level as soon as that level is done; reports progress every `every` users with a rough time left."""
     from ott_recsys.serving import handler as H
     from ott_recsys.serving.bundle import Bundle
     from ott_recsys.serving.search import live_candidates
@@ -135,12 +137,18 @@ def level_study(endpoint: str, key: str, levels, n_users: int = 100, seed: int =
         store.put_user(rec)
     pre_app = H.App(b, store, store)
     pre = {rec["user_id"]: top18(H.handle(pre_app, "POST", "/recommend", {"user_id": rec["user_id"], "seed": 1, "record_impressions": False})[1]) for rec in recs}
-    rows = []
+    t_study, done_users, total_users = time.perf_counter(), 0, len(levels) * len(recs)
     for level in levels:
         searcher = TimedCache(ZillizREST(ZillizConfig(endpoint, key), timeout=10.0, level=level))
         main_r, lane_r, same_main, same_lane = [], [], 0, 0
-        for rec in recs:
+        progress(f"    level {level}: searching ({len(recs)} users, about {2 * len(recs)} searches)", flush=True)
+        for k, rec in enumerate(recs, 1):
             live, _ = live_candidates(b, rec, searcher)
+            done_users += 1
+            if k % every == 0 or k == len(recs):
+                spent = time.perf_counter() - t_study
+                left = spent / done_users * (total_users - done_users)
+                progress(f"    level {level}: {k}/{len(recs)} users, {spent:.0f}s so far, about {left:.0f}s left in the study", flush=True)
             off = rec["cand"]
             for part, store_r in ((slice(0, 200), main_r), (slice(200, None), lane_r)):
                 p_off, p_live = set(off[part][off[part] >= 0].tolist()), set(live[part][live[part] >= 0].tolist())
@@ -158,11 +166,10 @@ def level_study(endpoint: str, key: str, levels, n_users: int = 100, seed: int =
             same_set += set(lv) == set(pv)
             same_order += lv == pv
         t = sorted(searcher.times)
-        rows.append({"level": level, "main_recall": float(np.mean(main_r)), "lane_recall": float(np.mean(lane_r)) if lane_r else float("nan"),
+        yield ({"level": level, "main_recall": float(np.mean(main_r)), "lane_recall": float(np.mean(lane_r)) if lane_r else float("nan"),
                      "identical_main": same_main, "identical_lane": same_lane, "top18_overlap": float(np.mean(ov)), "top18_same_set": same_set,
                      "top18_same_order": same_order, "fallbacks": fallbacks, "searches": len(t), "median_ms": 1000 * statistics.median(t),
                      "p90_ms": 1000 * t[int(0.9 * (len(t) - 1))]})
-    return rows
 
 
 def main(argv=None, client_factory=None, out_dir=None) -> int:
@@ -171,6 +178,8 @@ def main(argv=None, client_factory=None, out_dir=None) -> int:
     ap.add_argument("--levels", default="1,3,5,7,10", help="search levels for the --recall study")
     ap.add_argument("--level", type=int, default=None, choices=range(1, 11), metavar="1-10", help="search level for A1/A2 (default: none sent)")
     ap.add_argument("--users", type=int, default=100)
+    ap.add_argument("--skip-write-test", action="store_true",
+                    help="skip B: the key is KNOWN to be write-capable (decision 2026-10-27, option a); the verdict then covers A1 and A2 only")
     args = ap.parse_args(argv)
     try:
         levels = [int(x) for x in args.levels.split(",")]
@@ -228,18 +237,21 @@ def main(argv=None, client_factory=None, out_dir=None) -> int:
         ok["A2"] = False
         print(f"A2 search (Lambda REST client): FAIL ({failure.args[0] if failure.args else 'SearchError'})")
 
-    # B harmless write attempts with the read-only key
-    w_pm, w_rest = write_attempt_pymilvus(client), write_attempt_rest(endpoint, ro)
-    try:
-        probe = search_pm(client, PROBE, "vector", WRITE_TEST_ROW["vector"], 10)
-        unchanged = probe == [PROBE_ROW["item_id"]]
-    except Exception as exc:
-        shown = error_code(exc)
-        unchanged, probe = None, []
-        print(f"probe check: could not search ott_write_probe (error type: {shown})")
-    ok["B"] = w_pm.startswith("REFUSED") and w_rest.startswith("REFUSED") and unchanged is True
-    print(f"B write with the read-only key: pymilvus {w_pm}; REST {w_rest}; probe unchanged: "
-          f"{'yes' if unchanged else 'NO (a test row was written)' if unchanged is False else 'unknown'}  -> {'PASS' if ok['B'] else 'FAIL'}")
+    # B harmless write attempts with the read-only key (skipped when the key is known to be write-capable)
+    if args.skip_write_test:
+        print("B write test: SKIPPED (--skip-write-test: this key is known to be write-capable; accepted 2026-10-27, option a; nothing written)")
+    else:
+        w_pm, w_rest = write_attempt_pymilvus(client), write_attempt_rest(endpoint, ro)
+        try:
+            probe = search_pm(client, PROBE, "vector", WRITE_TEST_ROW["vector"], 10)
+            unchanged = probe == [PROBE_ROW["item_id"]]
+        except Exception as exc:
+            shown = error_code(exc)
+            unchanged, probe = None, []
+            print(f"probe check: could not search ott_write_probe (error type: {shown})")
+        ok["B"] = w_pm.startswith("REFUSED") and w_rest.startswith("REFUSED") and unchanged is True
+        print(f"B write with the read-only key: pymilvus {w_pm}; REST {w_rest}; probe unchanged: "
+              f"{'yes' if unchanged else 'NO (a test row was written)' if unchanged is False else 'unknown'}  -> {'PASS' if ok['B'] else 'FAIL'}")
 
     # C the level study (informational)
     if args.recall:
@@ -254,8 +266,10 @@ def main(argv=None, client_factory=None, out_dir=None) -> int:
                       f"({r['searches']} searches)" + (f" | {r['fallbacks']} fallbacks" if r["fallbacks"] else ""), flush=True)
         except SearchError as failure:
             print(f"C level study: stopped ({failure.args[0] if failure.args else 'SearchError'})")
-    passed = all(ok.get(k) for k in ("A1", "A2", "B"))
-    print(f"verdict: {'PASS' if passed else 'FAIL'} (A1 {'ok' if ok.get('A1') else 'no'}, A2 {'ok' if ok.get('A2') else 'no'}, B {'ok' if ok.get('B') else 'no'})")
+    judged = ("A1", "A2") if args.skip_write_test else ("A1", "A2", "B")
+    passed = all(ok.get(k) for k in judged)
+    print(f"verdict: {'PASS' if passed else 'FAIL'} (" + ", ".join(f"{k} {'ok' if ok.get(k) else 'no'}" for k in judged)
+          + ("; B skipped" if args.skip_write_test else "") + ")")
     return 0 if passed else 1
 
 
