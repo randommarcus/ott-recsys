@@ -3,7 +3,7 @@
 Upload this file and lambda.zip (from scripts/build_lambda_zip.py) into ONE folder, then:
 
     python3 deploy_lambda.py --region eu-central-1 create          # log group (7-day retention), function, Function URL (AWS_IAM only)
-    python3 deploy_lambda.py --region eu-central-1 smoke --user-id 1   # calls the function directly (no URL needed) and prints counts and timings
+    python3 deploy_lambda.py --region eu-central-1 smoke --user-id 1   # calls the function directly (no URL needed): health, M2, M3b, and LIVE mode
     python3 deploy_lambda.py --region eu-central-1 update-code     # after a new lambda.zip
     python3 deploy_lambda.py --region eu-central-1 show-url        # prints the Function URL (keep it out of the repository)
 
@@ -84,7 +84,8 @@ def smoke(session, region, user_id: int) -> int:
     bad = 0
     for label, payload in (("GET /health", event("GET", "/health", {})),
                            ("POST /recommend, precomputed, M2", event("POST", "/recommend", {"user_id": user_id, "record_impressions": False})),
-                           ("POST /recommend, precomputed, M3b (SIMULATED device)", event("POST", "/recommend", {"user_id": user_id, "model": "M3b", "device": "mobile", "record_impressions": False}))):
+                           ("POST /recommend, precomputed, M3b (SIMULATED device)", event("POST", "/recommend", {"user_id": user_id, "model": "M3b", "device": "mobile", "record_impressions": False})),
+                           ("POST /recommend, LIVE (SSM key + Zilliz search)", event("POST", "/recommend", {"user_id": user_id, "mode": "live", "record_impressions": False}))):
         try:
             r = lam.invoke(FunctionName=FN, Payload=payload)
             out = json.loads(r["Payload"].read())
@@ -95,6 +96,13 @@ def smoke(session, region, user_id: int) -> int:
                 continue
             t = body.get("timings_ms", {})
             extra = f"{len(body['items'])} items, server {t.get('server_total')} ms, cold start {body['diagnostics']['cold_start']}" if "items" in body else "ok"
+            diag = body.get("diagnostics", {}) if isinstance(body, dict) else {}
+            if "LIVE" in label:
+                if diag.get("fallback"):  # the handler's own text: exception TYPE only, never a message
+                    extra += f"; FELL BACK to precomputed ({diag['fallback'][:90]})"
+                    bad += 1
+                else:
+                    extra += f"; {diag.get('searches', 0)} Zilliz searches, search {t.get('search')} ms"
             print(f"  {label:<52s} 200: {extra}", flush=True)
         except Exception as exc:
             shown = word(exc)

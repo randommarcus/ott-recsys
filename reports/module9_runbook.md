@@ -84,7 +84,7 @@ AWS_PROFILE=ott-dev .venv/bin/python scripts/cloudshell/load_dynamodb.py --regio
 .venv/bin/python scripts/put_ssm_secrets.py --region eu-central-1
 ```
    (Alternative with hidden prompts instead of `.env`: `AWS_PROFILE=ott-dev .venv/bin/python scripts/cloudshell/put_zilliz_param.py --region eu-central-1`.)
-4. **Lambda** (log group with 7-day retention, function with no environment variables, IAM-only Function URL, optional reserved concurrency 2), then a direct-invoke smoke test:
+4. **Lambda** (log group with 7-day retention, function with no environment variables, IAM-only Function URL, optional reserved concurrency 2), then a direct-invoke smoke test (health, precomputed M2, precomputed M3b, and LIVE mode, which proves the function can read the SSM parameter and search Zilliz; a fallback to the precomputed list counts as a failure):
 ```bash
 AWS_PROFILE=ott-dev .venv/bin/python scripts/cloudshell/deploy_lambda.py --region eu-central-1 --zip build/lambda.zip create
 ```

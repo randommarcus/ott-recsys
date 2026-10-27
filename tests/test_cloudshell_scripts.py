@@ -198,6 +198,16 @@ def test_smoke_prints_counts_and_never_the_url(tmp_path, capsys):
     assert all(json.loads(b["body"]).get("record_impressions", True) is False for b in bodies if json.loads(b["body"]).get("user_id")), "smoke tests must not change bandit counts"
 
 
+def test_smoke_checks_live_mode_and_fails_on_a_fallback(capsys):
+    w = World(existing={("eu-central-1", "fn", "ott-recsys-serve")})
+    assert deploy.main(["--region", "eu-central-1", "smoke"], session_factory=sess(w)) == 0
+    out = capsys.readouterr().out
+    assert "LIVE (SSM key + Zilliz search)" in out and "2 Zilliz searches, search 40.0 ms" in out
+    w.live_fallback = "live retrieval failed (ConfigError); used the precomputed list"
+    assert deploy.main(["--region", "eu-central-1", "smoke"], session_factory=sess(w)) == 1
+    assert "FELL BACK to precomputed (live retrieval failed (ConfigError)" in capsys.readouterr().out
+
+
 def test_show_url_is_the_only_action_that_prints_the_url(tmp_path, capsys):
     w = World(existing={("eu-central-1", "fn", "ott-recsys-serve"), ("eu-central-1", "url", "ott-recsys-serve")})
     assert deploy.main(["--region", "eu-central-1", "show-url"], session_factory=sess(w)) == 0

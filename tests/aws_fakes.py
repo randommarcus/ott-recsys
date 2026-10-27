@@ -32,6 +32,7 @@ class World:
         self.calls = []  # (region, service, method, kwargs)
         self.ssm_values = {}
         self.items = {}
+        self.live_fallback = None  # set to the handler's fallback text to simulate a live-mode failure
         self.fail_after = None
 
     def session(self, profile="ott-dev", region="eu-central-1"):
@@ -160,8 +161,11 @@ class Client:
             if method == "invoke":
                 ev = json.loads(kw["Payload"])
                 path = ev.get("rawPath", "/health")
-                body = {"ok": True} if path == "/health" else {"items": [{"position": i} for i in range(1, 21)], "timings_ms": {"server_total": 12.3},
-                                                               "diagnostics": {"cold_start": True}}
+                req_body = json.loads(ev.get("body") or "{}")
+                live = req_body.get("mode") == "live"
+                body = {"ok": True} if path == "/health" else {"items": [{"position": i} for i in range(1, 21)], "timings_ms": {"server_total": 12.3, "search": 40.0},
+                                                               "diagnostics": {"cold_start": True, "searches": 2 if live else 0,
+                                                                               "fallback": w.live_fallback if live else None}}
                 return {"StatusCode": 200, "Payload": io.BytesIO(json.dumps({"statusCode": 200, "body": json.dumps(body)}).encode())}
             if method == "get_function_url_config":
                 if (self.region, "url", kw["FunctionName"]) not in w.res:
