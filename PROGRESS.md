@@ -225,8 +225,23 @@ Plan: `reports/module9_cp3_plan.md` (approved: AUTOINDEX with metric IP; read-on
 - **Decision 2026-10-27 (option a):** two separately created "read-only" keys could both insert on this Free cluster, so the Lambda will use a WRITE-CAPABLE key, kept separate from the admin key so it can be revoked on its own. Mitigations: the Lambda code never sends a write; the key lives only in `.env` (as `ZILLIZ_TOKEN_READONLY`, name kept for continuity) and later in the one SSM SecureString `/ott/zilliz`, readable only by the Lambda role; it is restricted to this cluster, which holds nothing but the three project collections; those rebuild from the exports in about 3 minutes (`load_zilliz.py --recreate`). Stated as a limitation in the write-up. `verify_zilliz.py --skip-write-test` skips the write test (nothing is written) and judges only the searches.
 - **Code:** `verify_zilliz.py --skip-write-test` (B not attempted, verdict on A1/A2 only); the level study now prints a progress line every 20 users with time left and each level's result as soon as it is done. Tests added (progress lines, no write attempted under the flag, the write test still fails for a writable key without the flag).
 
+## 2026-10-27 — Module 9, checkpoint 3: level study (run by you, write-capable key, write test skipped)
+A1/A2 PASS; B skipped by decision (a); verdict PASS. Same 100 users at every level; recall = share of the exact precomputed candidates that live Zilliz search also returns; search time measured from the LAPTOP (India to Frankfurt, network included), NOT Lambda latency.
+
+| level | main recall | lane recall | handler top-18 overlap | same top-18 set | same order | laptop search median / p90 |
+|---|---|---|---|---|---|---|
+| 1 (server default) | 87.0% (0 identical) | 86.7% (2) | 89.9% | 13/100 | 0/100 | 958 / 1,179 ms |
+| 3 | 87.0% (0) | 88.0% (3) | 89.9% | 13/100 | 0/100 | 962 / 1,173 ms |
+| 5 | 91.8% (0) | 92.6% (3) | 92.9% | 24/100 | 0/100 | 959 / 1,190 ms |
+| 7 | 91.8% (0) | 93.3% (4) | 92.9% | 24/100 | 0/100 | 963 / 1,231 ms |
+| 10 | 91.8% (0) | 93.4% (3) | 92.9% | 24/100 | 0/100 | 955 / 982 ms |
+
+- **Reading:** the level setting works on this Free cluster, but in two steps only (1 = 3, then 5 = 7 = 10 for the main lane) and it stops at about 92% recall, not the 99% the docs suggest for high levels. Local check (no Zilliz call): the vectors in Zilliz are identical to the ones the precomputed lists used (two-tower exact; content differs only by float16 rounding, about 1e-4), so the gap comes from Zilliz's approximate index on this cluster, not from our data. Why it plateaus is not confirmed.
+- **What the user would see:** live mode and precomputed mode share about 93% of the top-18 at level 5+; never the same order, because small changes in the candidate list shift the rank-based features. Precomputed mode stays the primary (exact) path; live mode is the vector-database demonstration, with this measured agreement.
+- **Laptop search time (~960 ms median) shows no level effect:** it is dominated by the network from India to Frankfurt and by a new HTTPS connection for every search; it says nothing about Lambda in eu-central-1, which the latency study (checkpoint 5) measures.
+
 ## Next
-- **Checkpoint 3 follow-up (yours to run):** `jobs -l` and `kill` any paused earlier run, then `verify_zilliz.py --skip-write-test --recall`; paste the output so `SEARCH_LEVEL` can be picked. The probe still holds the junk row; harmless, dropped at teardown (or `--reset-probe`).
+- **Checkpoint 3 follow-up (decision pending):** proposed `SEARCH_LEVEL = 5` (lowest level at the plateau) and optional HTTPS connection reuse in the Lambda search client; then checkpoint 4. The probe still holds the junk row; harmless, dropped at teardown (or `--reset-probe`).
 - **Checkpoint 4 (needs your go):** tables + data load, SSM parameter, Lambda, smoke test (commands in `reports/module9_runbook.md`, Part A). Region eu-central-1. Cost under $0.50 expected; everything is torn down after the demo (Free-plan accounts close when credits or six months run out).
 - Then checkpoint 5 (demo + latency; scripts still to write, predictions committed first) and 6 (teardown).
 - Test is spent: no more test runs. After serving: the final MBA report using the pre-registered results above.
