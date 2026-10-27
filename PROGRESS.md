@@ -240,8 +240,15 @@ A1/A2 PASS; B skipped by decision (a); verdict PASS. Same 100 users at every lev
 - **What the user would see:** live mode and precomputed mode share about 93% of the top-18 at level 5+; never the same order, because small changes in the candidate list shift the rank-based features. Precomputed mode stays the primary (exact) path; live mode is the vector-database demonstration, with this measured agreement.
 - **Laptop search time (~960 ms median) shows no level effect:** it is dominated by the network from India to Frankfurt and by a new HTTPS connection for every search; it says nothing about Lambda in eu-central-1, which the latency study (checkpoint 5) measures.
 
+## 2026-10-27 — Module 9: search level 5 and connection reuse in the Lambda search client (written and tested; NOT yet run against Zilliz)
+- `SEARCH_LEVEL = 5` in `serving/search.py` (lowest level at the recall plateau of the level study); the handler passes it; a test pins it.
+- The REST client now keeps ONE HTTPS connection (http.client) and reuses it for every search; in Lambda the client lives in the warm container, so later requests skip the TCP and TLS handshakes. If the server has closed an idle connection, the search is retried once on a new connection (safe: searches only read); two such failures in a row give `connection-closed`. Errors still carry only a type name, an HTTP status (`http-401`) or a Zilliz code; any error closes the connection.
+- Tests: a conftest seam routes the client's connection through the existing urllib fakes, so every earlier fake and leak test still runs; new tests for reuse (3 searches, 1 connection), the stale-connection retry, giving up cleanly, HTTP errors and bad JSON. 340 tests pass.
+- Lambda zip rebuilt: 51,798,803 bytes = 49.40 MiB, about 0.6 MiB under the 50 MiB limit; smoke test identical.
+- Not yet confirmed against the real cluster: the new transport (a quick `verify_zilliz.py --skip-write-test --level 5` run does that).
+
 ## Next
-- **Checkpoint 3 follow-up (decision pending):** proposed `SEARCH_LEVEL = 5` (lowest level at the plateau) and optional HTTPS connection reuse in the Lambda search client; then checkpoint 4. The probe still holds the junk row; harmless, dropped at teardown (or `--reset-probe`).
+- **Checkpoint 3 close-out (yours to run):** `verify_zilliz.py --skip-write-test --level 5` (confirms the new connection-reusing client on the real cluster), optionally a short study at level 5 to see the laptop time with connection reuse; then checkpoint 4. The probe still holds the junk row; harmless, dropped at teardown (or `--reset-probe`).
 - **Checkpoint 4 (needs your go):** tables + data load, SSM parameter, Lambda, smoke test (commands in `reports/module9_runbook.md`, Part A). Region eu-central-1. Cost under $0.50 expected; everything is torn down after the demo (Free-plan accounts close when credits or six months run out).
 - Then checkpoint 5 (demo + latency; scripts still to write, predictions committed first) and 6 (teardown).
 - Test is spent: no more test runs. After serving: the final MBA report using the pre-registered results above.
