@@ -41,8 +41,8 @@ def upsert_batches(client, name: str, cols: dict, batch: int, sleep=time.sleep) 
 def wait_loaded(client, name: str, sleep=time.sleep, tries: int = 60) -> bool:
     for _ in range(tries):
         with quiet():
-            state = str(client.get_load_state(collection_name=name).get("state", ""))
-        if state.endswith("Loaded"):
+            st = client.get_load_state(collection_name=name).get("state", "")
+        if "Loaded" in (getattr(st, "name", None) or str(st)):  # LoadState enum (Loaded / Loading / NotLoad) or plain text
             return True
         sleep(2)
     return False
