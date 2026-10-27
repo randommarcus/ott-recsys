@@ -215,8 +215,14 @@ Plan: `reports/module9_cp3_plan.md` (approved: AUTOINDEX with metric IP; read-on
 - **Lambda zip rebuilt:** 51,798,151 bytes = 49.40 MiB, about 0.6 MiB under the 50 MiB direct-upload limit; smoke test identical.
 - **Zilliz roles (docs):** platform privileges, resource `serving_cluster_data`: Data Admin `*` (read and write), Data Operator `Read, Write`, Data Viewer `Read` ("Write implies Read"). Not confirmed by any page: which operations Read/Write cover (search? insert?), how project roles map to the cluster privilege groups (CollectionReadOnly / CollectionReadWrite / CollectionAdmin, which list Search, Query and Insert), and whether any of this is enforced on Free clusters. Our run showed the key you had created as read-only could insert.
 
+## 2026-10-27 — Module 9, checkpoint 3 re-run (by you) with a REPLACEMENT read-only key: it can write too
+- **Probe reset: done** (`--reset-probe`, 113 s; only `ott_write_probe` touched).
+- **A1/A2 PASS** with the replacement key (search works through pymilvus and the Lambda REST client; 10/10 and 30/30 identical).
+- **B FAIL again:** the replacement key also inserted the test row through both pymilvus and REST; the probe holds the junk row again. Two separately created "read-only" keys could both write, so on this Free cluster a search-only key does not seem to be available (either the role does not restrict writes here, or the console did not apply it; I cannot tell which from here).
+- **Level study:** started, then paused with Ctrl+Z before the first level finished; no results. (The study prints nothing until a whole level is done, which takes minutes, so it looked stuck.)
+
 ## Next
-- **Checkpoint 3 follow-up (yours to run):** replace the read-only key in `.env` (you), reset the probe, then `verify_zilliz.py --recall` (commands in the runbook, Part A step 2). Then pick `SEARCH_LEVEL` from the study, and decide what to do if B still says ALLOWED (write-capable key in SSM, or precomputed-only serving).
+- **Checkpoint 3 follow-up:** (1) your decision on the Lambda's Zilliz key now that two read-only keys could write: a write-capable key in SSM with mitigations, or precomputed-only serving; (2) re-run the level study (with progress output, if approved) and pick `SEARCH_LEVEL`; (3) reset the probe again before any further write test.
 - **Checkpoint 4 (needs your go):** tables + data load, SSM parameter, Lambda, smoke test (commands in `reports/module9_runbook.md`, Part A). Region eu-central-1. Cost under $0.50 expected; everything is torn down after the demo (Free-plan accounts close when credits or six months run out).
 - Then checkpoint 5 (demo + latency; scripts still to write, predictions committed first) and 6 (teardown).
 - Test is spent: no more test runs. After serving: the final MBA report using the pre-registered results above.
