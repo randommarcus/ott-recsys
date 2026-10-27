@@ -75,6 +75,7 @@ def _files():
                 "export_dynamodb_items.py", "cloudshell/*.py", "load_zilliz.py", "verify_zilliz.py", "check_zilliz.py"):
         files += sorted((ROOT / "scripts").glob(pat))
     files.append(ROOT / "src" / "ott_recsys" / "zilliz_collections.py")
+    files.append(ROOT / "src" / "ott_recsys" / "serving_client.py")
     return files
 
 

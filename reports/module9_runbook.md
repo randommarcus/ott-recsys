@@ -93,8 +93,18 @@ AWS_PROFILE=ott-dev .venv/bin/python scripts/cloudshell/deploy_lambda.py --regio
 ```
    A new zip later: same script, action `update-code`. `show-url` prints the Function URL (keep it out of the repository and chat). The zip is 49.4 MiB against a 50 MiB direct-upload limit; if
    the create call is refused for size, tell me (fallbacks: trim the bundle by about 3 MiB, or an S3 upload, which needs a bucket and a policy change that is your decision).
-5. **Demo and latency** (checkpoint 5; scripts not written yet): the laptop signs requests to the IAM-only Function URL with the `ott-dev` profile (same account, and `ott-dev-serving` has
-   `lambda:InvokeFunctionUrl` and `lambda:InvokeFunction`; untested until the function exists). Latency predictions are committed before any measurement. Never `AuthType NONE`.
+5. **Latency study and demo (checkpoint 5).** Predictions are committed in `reports/module9_latency_predictions.md`; the study refuses to run if that file changed.
+```bash
+.venv/bin/python scripts/latency_study.py
+```
+   About 5-10 minutes: network baseline, 200 users x 2 modes through the IAM-signed Function URL (bandit counts untouched), 10 forced cold starts (a temporary
+   configuration variable holding only a counter, removed at the end). Prints server and laptop percentiles, stage medians, cold starts, and measured vs predicted;
+   saves `reports/module9_latency_results.json`.
+```bash
+.venv/bin/python scripts/demo.py
+```
+   About 2-4 minutes: writes `reports/module9_demo.html` (+ `.json` summary): M2 mid-session vs after a break, M3b tv vs mobile under the synthetic-effect banner,
+   live vs precomputed, and the UCB slots under SIMULATED feedback (the only part that changes stored counts). Never `AuthType NONE`.
 6. **Teardown** (after the demo, or any time; dry run first by leaving off `--confirm`):
 ```bash
 .venv/bin/python scripts/aws_teardown.py --confirm DELETE-OTT
