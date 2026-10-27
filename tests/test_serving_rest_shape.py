@@ -45,3 +45,18 @@ def test_no_filter_key_without_a_filter_and_id_fallback(monkeypatch):
     body = json.loads(seen["req"].data)
     assert "filter" not in body and body["limit"] == 230 and body["annsField"] == "vector"
     assert ids.tolist() == [11]
+
+
+def test_search_level_goes_in_search_params_params_level(monkeypatch):
+    """Zilliz "Tune recall rate" docs: REST searchParams.params.level, an integer 1-10 (default 1 when absent)."""
+    import pytest
+    from ott_recsys.serving.search import SEARCH_LEVEL, search_params_rest
+    seen = _capture(monkeypatch, {"code": 0, "data": []})
+    ZillizREST(ZillizConfig("https://example.invalid", "tok"), level=7).search("movie_items_twotower_id", "vector", [1.0, 0.0], 230)
+    body = json.loads(seen["req"].data)
+    assert body["searchParams"] == {"metricType": "IP", "params": {"level": 7}}
+    assert search_params_rest(None) == {"metricType": "IP"}  # no level -> server default; nothing else added
+    for bad in (0, 11, 2.5, "5"):
+        with pytest.raises(ValueError):
+            search_params_rest(bad)
+    assert SEARCH_LEVEL is None or 1 <= SEARCH_LEVEL <= 10

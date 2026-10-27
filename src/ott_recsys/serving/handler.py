@@ -172,12 +172,12 @@ _APP = None
 
 
 def _default_app() -> App:
-    from .search import ZillizREST
+    from .search import SEARCH_LEVEL, ZillizREST
     from .secrets import load_from_ssm
     from .store import DynamoStore
     bundle = Bundle(Path(os.environ.get("OTT_BUNDLE_DIR", str(Path(__file__).resolve().parents[2] / "bundle"))))
     store = DynamoStore(os.environ.get("OTT_USERS_TABLE", "ott-users"), os.environ.get("OTT_BANDIT_TABLE", "ott-bandit"))
-    return App(bundle, store, store, searcher_factory=lambda: ZillizREST(load_from_ssm()))
+    return App(bundle, store, store, searcher_factory=lambda: ZillizREST(load_from_ssm(), level=SEARCH_LEVEL))
 
 
 def handle(app: App, method: str, path: str, body: dict):

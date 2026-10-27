@@ -22,13 +22,27 @@ class SearchError(Exception):
     """Message holds an exception type name or a numeric code only."""
 
 
+SEARCH_LEVEL = None  # Zilliz AUTOINDEX precision level for the Lambda (1-10; None = server default, which the docs give as 1). Set after the recall study.
+
+
+def search_params_rest(level: int | None) -> dict:
+    """REST v2 searchParams. `level` per the Zilliz "Tune recall rate" docs: searchParams.params.level, 1-10, default 1."""
+    sp = {"metricType": "IP"}  # AUTOINDEX takes no ef
+    if level is not None:
+        if not (isinstance(level, int) and 1 <= level <= 10):
+            raise ValueError("level must be an integer from 1 to 10")
+        sp["params"] = {"level": level}
+    return sp
+
+
 class ZillizREST:
-    def __init__(self, config, timeout: float = 3.0):
+    def __init__(self, config, timeout: float = 3.0, level: int | None = None):
         self._cfg, self.timeout = config, timeout
+        self.search_params = search_params_rest(level)
 
     def search(self, collection: str, field: str, vec, limit: int, flt: str | None = None):
         body = {"collectionName": collection, "data": [np.asarray(vec, np.float32).tolist()], "annsField": field, "limit": int(limit),
-                "outputFields": ["item_id"], "searchParams": {"metricType": "IP"}}  # REST v2 spelling; AUTOINDEX takes no ef
+                "outputFields": ["item_id"], "searchParams": self.search_params}
         if flt:
             body["filter"] = flt
         req = urllib.request.Request(self._cfg.uri.rstrip("/") + "/v2/vectordb/entities/search", data=json.dumps(body).encode(), method="POST",
