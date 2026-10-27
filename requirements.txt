@@ -16,3 +16,4 @@ jupyter
 matplotlib
 pyarrow
 scipy
+python-docx

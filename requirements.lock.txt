@@ -188,3 +188,5 @@ wheel==0.48.0
 widgetsnbextension==4.0.16
 wrapt==2.5.1
 xgboost==3.4.1
+python-docx==1.2.0
+lxml==6.1.3
