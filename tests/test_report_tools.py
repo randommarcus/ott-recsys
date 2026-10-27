@@ -33,7 +33,12 @@ def test_reference_titles_are_exempt_from_words_but_not_from_dashes():
 def test_word_builder_makes_a_document(tmp_path):
     from docx import Document
     out = tmp_path / "r.docx"
-    assert builder.main(["--out", str(out), CHAPTERS[0].name]) == 0
+    assert builder.main(["--out", str(out), "03_data.md"]) == 0
     d = Document(str(out))
     assert any(p.style.name == "Heading 1" for p in d.paragraphs)
     assert len(d.tables) >= 1
+
+
+def test_code_spans_are_exempt_from_the_word_list_only():
+    assert style.check_text("The script `unlock_test.py` ran once.") == []
+    assert style.check_text("We unlock value.") == [(1, "unlock")]

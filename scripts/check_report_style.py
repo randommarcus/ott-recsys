@@ -30,7 +30,7 @@ def check_text(text: str, dashes_only: bool = False) -> list:
                 hits.append((n, name))
         if dashes_only:
             continue
-        low = line.lower()
+        low = re.sub(r"`[^`]*`", "", line).lower()  # file and script names in code spans are literal
         for w in BANNED:
             if re.search(r"(?<![a-z])" + re.escape(w) + r"(?![a-z])", low):
                 hits.append((n, w))
