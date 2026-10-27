@@ -68,3 +68,9 @@ Rollback at any time: `zilliz_teardown.py --confirm DROP-ZILLIZ` or delete the c
 1. AUTOINDEX instead of the exported HNSW settings (docs say it is the only managed option; HNSW only if Zilliz confirms Free supports it).
 2. Data Viewer on a customized, cluster-restricted API key as the "read-only" key, with the fallback in section 0.2 if it cannot search.
 3. Include the optional recall check.
+
+## 9. Status after the go (2026-10-27)
+- Written, tested against a fake Zilliz, NOT run: `scripts/load_zilliz.py`, `scripts/verify_zilliz.py`, `scripts/zilliz_teardown.py`, shared `src/ott_recsys/zilliz_collections.py`. The Lambda REST search body now uses `searchParams {"metricType": "IP"}` and no `ef`; the rebuilt zip is 51,797,877 bytes (49.40 MiB), still under the 50 MiB direct-upload limit.
+- **Long suspension of a free cluster (official docs, read 2026-10-27):** free clusters are suspended automatically, with notice, after 7 consecutive days without activity and "can be resumed at any time"; a deleted free cluster cannot be restored from the recycle bin; each organisation has one free cluster.
+  **Not confirmed by any page I could reach:** whether a free cluster that stays suspended for a long time is eventually deleted (no number of days is given), and whether its data is kept while suspended (one FAQ says suspended clusters are charged only for storage, which suggests the data stays, but that is said for paid clusters).
+  The support article "What happens to my inactive clusters" refused automated access, so check it in a browser. Practical rule: resume and run the verification before the demo; if the collections are gone, `load_zilliz.py` rebuilds them in minutes.

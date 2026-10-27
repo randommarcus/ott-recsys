@@ -56,7 +56,22 @@ AWS_PROFILE=ott-dev .venv/bin/python scripts/cloudshell/load_dynamodb.py --regio
 ```bash
 AWS_PROFILE=ott-dev .venv/bin/python scripts/cloudshell/load_dynamodb.py --region eu-central-1 --check --dir build/dynamodb
 ```
-2. **Zilliz collections** (checkpoint 3, first Zilliz write, separate go; you create the Read-Only key and put it in `.env` as `ZILLIZ_TOKEN_READONLY`).
+2. **Zilliz collections (checkpoint 3).** First, in the Zilliz console, create a customized API key with the project role **Data Viewer**, restricted to this one cluster, and put it in `.env` as `ZILLIZ_TOKEN_READONLY` (never paste it into chat). Then:
+```bash
+.venv/bin/python scripts/load_zilliz.py
+```
+   Dry run: three `integrity: ok` lines, `connection: yes; collections in the cluster: N (ours already present: none ...)`, and `DRY RUN: nothing written ...`.
+```bash
+.venv/bin/python scripts/load_zilliz.py --confirm LOAD-ZILLIZ
+```
+   FIRST ZILLIZ WRITE ($0, about 2-5 min): three `loaded: ... rows (expected ...) ok` lines and `load complete: 3 collections, AUTOINDEX (metric IP), loaded`.
+```bash
+.venv/bin/python scripts/verify_zilliz.py --recall
+```
+   Read-only key only: lines A1, A2, B each ending `-> PASS`, a `C recall` line (informational; AUTOINDEX search is approximate, so overlap may be a little under 100%), and `verdict: PASS`.
+   If A1/A2 say the key may not have search rights, the Data Viewer key cannot search: stop and tell me (decision in `reports/module9_cp3_plan.md` section 0.2).
+   If B says `ALLOWED (UNEXPECTED ...)`, the key can write: change its role in Zilliz before going on. `INCONCLUSIVE` means a different error: paste the line.
+   Undo at any time: `.venv/bin/python scripts/zilliz_teardown.py` (dry run) and `--confirm DROP-ZILLIZ` (drops only the three project collections).
 3. **Zilliz settings for the function** (reads `ZILLIZ_URI` and `ZILLIZ_TOKEN_READONLY` from `.env` inside Python, prints only `stored: yes/no`; refuses a blank key or the full-access key):
 ```bash
 .venv/bin/python scripts/put_ssm_secrets.py --region eu-central-1
