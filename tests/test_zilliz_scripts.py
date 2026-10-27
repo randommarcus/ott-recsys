@@ -140,7 +140,7 @@ class _Resp:
 def rest_fake(store):
     """urllib.request.urlopen replacement serving the REST v2 search/insert endpoints from the same store."""
     def urlopen(req, timeout=None):
-        assert req.full_url.startswith(CANARY_URI)
+        assert req.full_url.lower().startswith(CANARY_URI.lower())  # host names are case-insensitive; urlsplit lowercases them
         key = req.get_header("Authorization").split(" ", 1)[1]
         body = json.loads(req.data)
         if req.full_url.endswith("/entities/search"):

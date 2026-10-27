@@ -60,3 +60,58 @@ def test_search_level_goes_in_search_params_params_level(monkeypatch):
         with pytest.raises(ValueError):
             search_params_rest(bad)
     assert SEARCH_LEVEL is None or 1 <= SEARCH_LEVEL <= 10
+
+
+def test_the_lambda_uses_search_level_5():
+    """Chosen from the level study (2026-10-27): the lowest level at the recall plateau."""
+    from ott_recsys.serving import handler
+    from ott_recsys.serving.search import SEARCH_LEVEL
+    assert SEARCH_LEVEL == 5
+    import inspect
+    assert "level=SEARCH_LEVEL" in inspect.getsource(handler._default_app)
+
+
+def test_one_connection_is_reused_across_searches(monkeypatch, route_zilliz_rest_through_urlopen):
+    _capture(monkeypatch, {"code": 0, "data": [{"item_id": 1, "distance": 0.5}]})
+    client = ZillizREST(ZillizConfig("https://example.invalid:19530", "tok"), level=5)
+    for _ in range(3):
+        client.search("movie_items_twotower_id", "vector", [1.0, 0.0], 10)
+    assert route_zilliz_rest_through_urlopen.opened == 1 and client.connections_opened == 1
+
+
+def test_a_stale_kept_alive_connection_is_retried_once(monkeypatch, route_zilliz_rest_through_urlopen):
+    from http.client import RemoteDisconnected
+    _capture(monkeypatch, {"code": 0, "data": [{"item_id": 4, "distance": 0.5}]})
+    client = ZillizREST(ZillizConfig("https://example.invalid", "tok"))
+    client.search("c", "vector", [1.0], 1)
+    route_zilliz_rest_through_urlopen.fail_next = [RemoteDisconnected("server closed the idle connection")]
+    ids, _ = client.search("c", "vector", [1.0], 1)
+    assert ids.tolist() == [4] and client.connections_opened == 2
+
+
+def test_two_stale_failures_in_a_row_give_up_with_a_clean_error(monkeypatch, route_zilliz_rest_through_urlopen):
+    import pytest
+    from http.client import RemoteDisconnected
+    from ott_recsys.serving.search import SearchError
+    _capture(monkeypatch, {"code": 0, "data": []})
+    route_zilliz_rest_through_urlopen.fail_next = [RemoteDisconnected("tok"), ConnectionResetError("tok")]
+    with pytest.raises(SearchError) as ei:
+        ZillizREST(ZillizConfig("https://example.invalid", "tok")).search("c", "vector", [1.0], 1)
+    assert ei.value.args == ("connection-closed",)
+
+
+def test_http_errors_and_bad_json_close_the_connection(monkeypatch):
+    import io, pytest, urllib.error
+    from ott_recsys.serving.search import SearchError
+
+    def http401(req, timeout=None):
+        raise urllib.error.HTTPError(req.full_url, 401, "no", {}, io.BytesIO(b""))
+    monkeypatch.setattr(urllib.request, "urlopen", http401)
+    client = ZillizREST(ZillizConfig("https://example.invalid", "tok"))
+    with pytest.raises(SearchError) as ei:
+        client.search("c", "vector", [1.0], 1)
+    assert ei.value.args == ("http-401",) and client._conn is None
+    monkeypatch.setattr(urllib.request, "urlopen", lambda req, timeout=None: _Resp(b"<html>"))
+    with pytest.raises(SearchError) as ei:
+        client.search("c", "vector", [1.0], 1)
+    assert ei.value.args == ("bad-json",)

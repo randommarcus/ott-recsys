@@ -8,7 +8,8 @@
 
 The REST call shape follows the Zilliz REST v2 docs (searchParams {"metricType": "IP"}, no ef for AUTOINDEX); checked against the real cluster by scripts/verify_zilliz.py. NumpySearch is an exact local stand-in used by the tests."""
 import json
-import urllib.request
+import urllib.parse
+from http.client import HTTPConnection, HTTPSConnection, CannotSendRequest, RemoteDisconnected
 
 import numpy as np
 
@@ -22,7 +23,9 @@ class SearchError(Exception):
     """Message holds an exception type name or a numeric code only."""
 
 
-SEARCH_LEVEL = None  # Zilliz AUTOINDEX precision level for the Lambda (1-10; None = server default, which the docs give as 1). Set after the recall study.
+SEARCH_LEVEL = 5  # Zilliz AUTOINDEX precision level used by the Lambda. Level study 2026-10-27 (100 users): main-lane recall 87.0% at levels 1-3,
+#                  91.8% at 5, 7 and 10 (the plateau); 5 is the lowest level at the plateau. Docs: 1-10, default 1.
+STALE = (RemoteDisconnected, ConnectionResetError, BrokenPipeError, CannotSendRequest)  # a kept-alive connection the server has closed
 
 
 def search_params_rest(level: int | None) -> dict:
@@ -36,20 +39,66 @@ def search_params_rest(level: int | None) -> dict:
 
 
 class ZillizREST:
+    """Zilliz REST v2 search over ONE reused HTTPS connection (keep-alive). In Lambda the client lives in the warm container, so later requests skip the
+    TCP and TLS handshakes. If the server has closed an idle connection, the search is retried once on a new connection (safe: a search only reads).
+    Errors carry only an exception type name, an HTTP status or a Zilliz code: never the endpoint, the token or a message."""
+
     def __init__(self, config, timeout: float = 3.0, level: int | None = None):
         self._cfg, self.timeout = config, timeout
         self.search_params = search_params_rest(level)
+        u = urllib.parse.urlsplit(config.uri)
+        self._https, self._host, self._port = u.scheme == "https", u.hostname, u.port
+        self._prefix = u.path.rstrip("/")
+        self._conn = None
+        self.connections_opened = 0
+
+    def close(self) -> None:
+        if self._conn is not None:
+            try:
+                self._conn.close()
+            except Exception:
+                pass
+            self._conn = None
+
+    def _connection(self):
+        if self._conn is None:
+            cls = HTTPSConnection if self._https else HTTPConnection
+            self._conn = cls(self._host, self._port, timeout=self.timeout)
+            self.connections_opened += 1
+        return self._conn
+
+    def _post(self, path: str, body: bytes) -> dict:
+        headers = {"Authorization": "Bearer " + self._cfg.token, "Content-Type": "application/json", "Accept": "application/json"}
+        for attempt in (1, 2):
+            try:
+                conn = self._connection()
+                conn.request("POST", self._prefix + path, body=body, headers=headers)
+                resp = conn.getresponse()
+                data = resp.read()
+            except STALE:
+                self.close()
+                if attempt == 2:
+                    raise SearchError("connection-closed") from None
+                continue
+            except Exception as exc:
+                self.close()
+                raise SearchError(type(exc).__name__) from None
+            if resp.status != 200:
+                self.close()
+                raise SearchError(f"http-{int(resp.status)}")
+            try:
+                return json.loads(data)
+            except ValueError:
+                raise SearchError("bad-json") from None
+        raise SearchError("connection-closed")
 
     def search(self, collection: str, field: str, vec, limit: int, flt: str | None = None):
         body = {"collectionName": collection, "data": [np.asarray(vec, np.float32).tolist()], "annsField": field, "limit": int(limit),
                 "outputFields": ["item_id"], "searchParams": self.search_params}
         if flt:
             body["filter"] = flt
-        req = urllib.request.Request(self._cfg.uri.rstrip("/") + "/v2/vectordb/entities/search", data=json.dumps(body).encode(), method="POST",
-                                     headers={"Authorization": "Bearer " + self._cfg.token, "Content-Type": "application/json", "Accept": "application/json"})
+        payload = self._post("/v2/vectordb/entities/search", json.dumps(body).encode())
         try:
-            with urllib.request.urlopen(req, timeout=self.timeout) as r:
-                payload = json.loads(r.read())
             code = payload.get("code", 0)
             if code not in (0, 200):
                 raise SearchError(f"zilliz-code-{int(code)}")
