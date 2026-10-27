@@ -40,8 +40,7 @@ class Store:
 
     def __init__(self):
         self.cols, self.calls = {}, []
-        self.ro_can_write = self.ro_can_search = True
-        self.ro_can_write = False
+        self.ro_can_write, self.ro_can_search = False, True  # a proper read-only key: can search, cannot write
         self.fail_upserts = 0
         self.insert_error = None
 
@@ -280,10 +279,9 @@ def test_teardown_only_ever_uses_literal_names():
 
 
 # ------------------------------------------------------------------------------------------------ verify_zilliz
-def loaded_store(env_capsys=None):
+def loaded_store():
     s = Store()
-    with pytest.MonkeyPatch.context() as m:
-        loader.main(["--confirm", "LOAD-ZILLIZ"], client_factory=factory(s), sleep=lambda x: None)
+    assert loader.main(["--confirm", "LOAD-ZILLIZ"], client_factory=factory(s), sleep=lambda x: None) == 0
     return s
 
 

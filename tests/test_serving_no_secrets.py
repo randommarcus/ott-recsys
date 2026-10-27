@@ -72,8 +72,9 @@ def violations(src: str) -> list:
 def _files():
     files = sorted((ROOT / "src" / "ott_recsys" / "serving").glob("*.py"))
     for pat in ("put_ssm_secrets.py", "aws_*.py", "deploy*.py", "demo*.py", "latency*.py", "load_dynamodb*.py", "zilliz_*.py", "build_lambda_zip.py",
-                "export_dynamodb_items.py", "cloudshell/*.py"):
+                "export_dynamodb_items.py", "cloudshell/*.py", "load_zilliz.py", "verify_zilliz.py", "check_zilliz.py"):
         files += sorted((ROOT / "scripts").glob(pat))
+    files.append(ROOT / "src" / "ott_recsys" / "zilliz_collections.py")
     return files
 
 

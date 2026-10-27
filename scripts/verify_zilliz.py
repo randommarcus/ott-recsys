@@ -148,8 +148,9 @@ def main(argv=None, client_factory=None, out_dir=None) -> int:
               f"lane {len(a1_lane)} results, all cold: {'yes' if all(cold.get(i, False) for i in a1_lane) else 'no'}; vec64 {len(a1_64)} results  -> {'PASS' if ok['A1'] else 'FAIL'}")
     except Exception as exc:
         shown = error_code(exc)
+        hint = "; the key may not have search rights" if looks_like_permission_error(error_words(exc)) else ""
         ok["A1"], a1_tt, a1_lane = False, [], []
-        print(f"A1 search (pymilvus): FAIL (error type: {shown})" + ("; the key may not have search rights" if looks_like_permission_error(error_words(exc)) else ""))
+        print(f"A1 search (pymilvus): FAIL (error type: {shown}){hint}")
 
     # A2 the Lambda's REST client
     rest = ZillizREST(ZillizConfig(endpoint, ro), timeout=10.0)
