@@ -32,7 +32,9 @@ class World:
         self.calls = []  # (region, service, method, kwargs)
         self.ssm_values = {}
         self.items = {}
-        self.live_fallback = None  # set to the handler's fallback text to simulate a live-mode failure
+        self.live_fallback = None
+        self.slow_table_delete = False  # DynamoDB-like: a deleted table stays visible with status DELETING
+        self.deleting = set()  # set to the handler's fallback text to simulate a live-mode failure
         self.fail_after = None
 
     def session(self, profile="ott-dev", region="eu-central-1"):
@@ -142,9 +144,12 @@ class Client:
             if method in DELETES:
                 kind, key = DELETES[method]
                 ident = (self.region, kind, kw[key])
-                if ident not in w.res:
+                if ident not in w.res or ident in w.deleting:
                     raise client_error(MISSING[kind], op=method)
-                w.res.discard(ident)
+                if kind == "table" and w.slow_table_delete:
+                    w.deleting.add(ident)
+                else:
+                    w.res.discard(ident)
                 return {}
             if method in PROBES:
                 kind, key = PROBES[method]
@@ -154,6 +159,8 @@ class Client:
                     return {"Parameter": {"Value": w.ssm_values.get(kw[key], "")}}
                 if method == "get_function_url_config":
                     return {"FunctionUrl": URL}
+                if method == "describe_table":
+                    return {"Table": {"TableStatus": "DELETING" if (self.region, kind, kw[key]) in w.deleting else "ACTIVE"}}
                 return {}
             if method == "create_function_url_config":
                 w.res.add((self.region, "url", kw["FunctionName"]))

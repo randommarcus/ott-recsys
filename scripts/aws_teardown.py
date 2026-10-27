@@ -50,9 +50,18 @@ class Teardown:
             items.append(("lambda function", f, probe(lambda f=f: self.lam.get_function(FunctionName=f))))
             items.append(("function URL", f, probe(lambda f=f: self.lam.get_function_url_config(FunctionName=f))))
         items += [("log group", g, probe(lambda g=g: self.logs.describe_log_streams(logGroupName=g, limit=1))) for g in LOG_GROUPS]
-        items += [("dynamodb table", t, probe(lambda t=t: self.ddb.describe_table(TableName=t))) for t in TABLES]
+        items += [("dynamodb table", t, self.table_state(t)) for t in TABLES]
         items += [("ssm parameter", p, probe(lambda p=p: self.ssm.get_parameter(Name=p))) for p in PARAMS]  # no decryption: only existence
         return items
+
+    def table_state(self, name) -> str:
+        """exists / deleting / absent / unknown(code). DynamoDB deletes in the background: a table can be visible for a while with status DELETING."""
+        try:
+            status = (self.ddb.describe_table(TableName=name) or {}).get("Table", {}).get("TableStatus", "")
+        except Exception as exc:
+            c = code_of(exc)
+            return "absent" if "NotFound" in c else f"unknown({c})"
+        return "deleting" if status == "DELETING" else "exists"
 
     def delete(self, kind, name) -> str:
         fn = {"function URL": lambda: self.lam.delete_function_url_config(FunctionName=name),
@@ -62,10 +71,15 @@ class Teardown:
               "ssm parameter": lambda: self.ssm.delete_parameter(Name=name)}[kind]
         try:
             fn()
-            return "deleted"
         except Exception as exc:
             c = code_of(exc)
             return "already gone" if "NotFound" in c or c == "ParameterNotFound" else f"FAILED({c})"
+        if kind == "dynamodb table":  # wait (up to 3 minutes) until DynamoDB has really removed it
+            try:
+                self.ddb.get_waiter("table_not_exists").wait(TableName=name, WaiterConfig={"Delay": 5, "MaxAttempts": 36})
+            except Exception:
+                return "delete requested (still deleting)"
+        return "deleted"
 
 
 ORDER = {"function URL": 0, "lambda function": 1, "log group": 2, "dynamodb table": 3, "ssm parameter": 4}  # URL before function, tables before nothing else depends on them
@@ -90,7 +104,7 @@ def main(argv=None, session_factory=None) -> int:
         import boto3
         session_factory = lambda profile, region: boto3.Session(profile_name=profile, region_name=region)
     regions = REGIONS if args.region == "all" else (args.region,)
-    remaining_total = unverified_total = 0
+    remaining_total = unverified_total = deleting_total = 0
     print("DELETE MODE" if delete else "DRY RUN (nothing is changed; add --confirm DELETE-OTT to delete)")
     print("credentials: " + ("default chain (no profile)" if profile is None else f"profile {profile}"))
     for region in regions:
@@ -113,9 +127,13 @@ def main(argv=None, session_factory=None) -> int:
                 if state != "absent":
                     print(f"  {kind:<16s} {name:<34s} {state}")
         n_exist = sum(1 for _, _, s in inv if s == "exists")
-        n_unver = sum(1 for _, _, s in inv if s not in ("exists", "absent"))  # AccessDenied, throttling, anything not a clean answer
+        n_deleting = sum(1 for _, _, s in inv if s == "deleting")
+        n_unver = sum(1 for _, _, s in inv if s not in ("exists", "absent", "deleting"))  # AccessDenied, throttling, anything not a clean answer
         remaining_total += n_exist
         unverified_total += n_unver
+        deleting_total += n_deleting
+        if n_deleting:
+            print(f"  deleting: {n_deleting} (DynamoDB is still removing these in the background; re-run the dry run in a minute or two to confirm 'absent')")
         label = "remaining" if delete else "existing"
         if n_unver:
             print(f"  unverified: {n_unver} (the check itself failed, so these are NOT known to be absent)" + (f"; {label}: {n_exist}" if n_exist else ""))
@@ -125,8 +143,10 @@ def main(argv=None, session_factory=None) -> int:
         print(f"remaining: {remaining_total}")
     if unverified_total:
         print(f"unverified: {unverified_total}")
+    if deleting_total:
+        print(f"deleting: {deleting_total}")
     if delete:
-        return 0 if remaining_total == 0 and unverified_total == 0 else 1
+        return 0 if remaining_total == 0 and unverified_total == 0 and deleting_total == 0 else 1
     return 1 if unverified_total else 0  # a dry run that could not check something must not look clean
 
 

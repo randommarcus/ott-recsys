@@ -270,6 +270,26 @@ def test_teardown_delete_mode_with_unverifiable_checks_exits_nonzero(capsys):
     assert "unverified: 3" in out
 
 
+def test_teardown_reports_tables_still_being_deleted(capsys):
+    """Seen for real on 2026-10-27: right after DeleteTable, DynamoDB still lists the tables (status DELETING) and they showed as 'exists'."""
+    class SlowWaiter:
+        def wait(self, **kw): raise RuntimeError("Waiter TableNotExists failed: Max attempts exceeded")
+    w = World(existing=populated())
+    w.slow_table_delete = True
+    from . import aws_fakes
+    orig = aws_fakes.Client.get_waiter
+    aws_fakes.Client.get_waiter = lambda self, name: SlowWaiter() if name == "table_not_exists" else orig(self, name)
+    try:
+        assert run_teardown(w, "--confirm", "DELETE-OTT", "--region", "eu-central-1") == 1
+    finally:
+        aws_fakes.Client.get_waiter = orig
+    out = capsys.readouterr().out
+    assert out.count("delete requested (still deleting)") == 2 and "deleting: 2" in out and "remaining: 0" in out and "exists" not in out.split("re-check:")[1]
+    w.deleting.clear()
+    w.res = {r for r in w.res if r[1] != "table" or r[0] != "eu-central-1"}
+    assert run_teardown(w, "--region", "eu-central-1") == 0 and "existing: 0" in capsys.readouterr().out
+
+
 def test_teardown_needs_the_exact_confirmation_word(capsys):
     w = World(existing=populated())
     assert run_teardown(w, "--confirm", "yes") == 2
