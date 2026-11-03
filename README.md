@@ -141,6 +141,8 @@ The function URL accepts only signed AWS requests. No account number, key or end
 
 Figures are drawn only from saved results in `reports/`. `scripts/check_report_style.py` checks the text.
 
+The PDF is exported from Word: open the .docx, press Ctrl+A then F9 to fill in the page numbers in the contents and lists, then **File > Save As > PDF** (with bookmarks from headings).
+
 ## Data Credits
 
 - **MovieLens 25M** by GroupLens Research, University of Minnesota. F. Maxwell Harper and Joseph A. Konstan. 2015. The MovieLens Datasets: History and Context. ACM Transactions on Interactive Intelligent Systems 5, 4: 19:1-19:19. https://doi.org/10.1145/2827872. The data is not redistributed here; see the GroupLens usage licence.
