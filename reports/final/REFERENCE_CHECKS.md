@@ -33,10 +33,11 @@ volume, issue and pages. Sources without a DOI were checked against the publishe
 - [x] afaqs! (16 September 2025): title, date, author line ("afaqs! news bureau") and the figures quoted in Chapter 1, read from the article.
 - [x] AWS Lambda pricing, DynamoDB on-demand pricing, Lambda quotas, Zilliz "Tune recall rate": read on the dates given in the reference list.
 
-## Still to check by hand (could not be verified automatically)
-- [ ] Adomavicius & Tuzhilin: Crossref dates the chapter 2010 (online); the handbook's print edition is 2011. I used 2011 with the editors; keep whichever your guide prefers.
-- [ ] Efron & Tibshirani (1993): standard citation, no DOI for the 1993 edition; add the city if your template wants it.
-- [ ] The Digital Personal Data Protection Act, 2023 (Act No. 22 of 2023): check the exact form your institution wants for Indian legislation.
-- [ ] Gomez-Uribe & Hunt (2015): the "about 80% of hours streamed" and "more than US$1 billion a year" figures quoted in Chapter 1 are from the paper's text; please confirm the wording against the PDF.
+## Formatting choices (open to the guide's preference)
+- Adomavicius & Tuzhilin: Crossref dates the chapter 2010 (online); the handbook's print edition is 2011. The report cites 2011 with the editors.
+- Efron & Tibshirani (1993): no DOI exists for the 1993 edition; cited in the standard form without a city.
+- The Digital Personal Data Protection Act, 2023 (Act No. 22 of 2023): cited in a general APA form; the institution's preferred form for Indian legislation may differ.
+- Page ranges use a hyphen instead of APA's en dash, to keep the text free of en and em dashes.
 
-Page ranges use a hyphen instead of an en dash on purpose (the report avoids en and em dashes). If your guide insists on APA's en dash in page ranges, change them at the end.
+## Checked against the source text, not a database
+- Gomez-Uribe & Hunt (2015): the figures quoted in Chapter 1 ("about 80% of hours streamed" and "more than US$1 billion a year") come from the paper's text. A metadata check cannot confirm quoted wording; it is to be confirmed against the paper's PDF before final submission.

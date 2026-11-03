@@ -2,7 +2,19 @@
 
 An MBA (Business Analytics) Semester 4 project. It builds a full movie recommendation pipeline for a streaming (OTT) service, tests it against simple baselines on held-out future data, and serves it from AWS Lambda with a hosted vector database.
 
-The full write-up is the final report: [`reports/final/OTT_Recommender_Report.docx`](reports/final/OTT_Recommender_Report.docx) (Markdown sources in [`reports/final/`](reports/final/)).
+**Status: complete.** All modules are done, the service was deployed on AWS, measured, and then removed to stop costs.
+
+## Start Here (10-Minute Tour)
+
+You don't need to install anything to review the project. Open these in order:
+
+1. **The report:** [`reports/final/OTT_Recommender_Report.docx`](reports/final/OTT_Recommender_Report.docx). GitHub can't preview Word files, so use the **Download** button. For a quick read on GitHub, start with the [Executive Summary](reports/final/00_4_executive_summary.md).
+2. **The results:** [`reports/module8_test_results.txt`](reports/module8_test_results.txt). The one-time test run, with 95% intervals.
+3. **What was predicted first:** [`reports/module8_predictions_vs_actuals.md`](reports/module8_predictions_vs_actuals.md). Every prediction was committed before the test was opened, and the failed ones are reported as they are.
+4. **The demo:** [`reports/module9_demo.html`](reports/module9_demo.html). Lists returned by the deployed service. Download it and open it in a browser (GitHub shows it as code).
+5. **The decision log:** [`PROGRESS.md`](PROGRESS.md). Every module, decision and result, in date order.
+
+A plain-language guide to every report file is in [`reports/README.md`](reports/README.md). The report chapters are also readable on GitHub as Markdown in [`reports/final/`](reports/final/) (for example [Chapter 5, Results](reports/final/05_results.md)).
 
 ## What It Does
 

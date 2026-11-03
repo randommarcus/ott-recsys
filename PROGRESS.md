@@ -272,7 +272,20 @@ A1/A2 PASS; B skipped by decision (a); verdict PASS. Same 100 users at every lev
 - **Demo (`reports/module9_demo.html`, `.json`):** M2 mid-session vs 3-day break: 2/18 titles change for the sampled user; M3b (synthetic, SIMULATED device): Drama-without-Comedy titles in the top 18, tv 5.9 vs mobile 3.5 (M2 6.7) over 40 users, the planted effect visible end to end; live vs precomputed 16/18 shared; UCB under SIMULATED feedback: 145 impressions, 40% simulated like rate.
 - **Teardown:** AWS `remaining: 0` in both Regions (DynamoDB deletion now waited for), Zilliz `remaining: 0`, final dry run `existing: 0`. Nothing is deployed.
 
-## Next
-- **Module 9 is complete** (serving built, deployed, measured, demonstrated and torn down). Next: the final MBA report from the pre-registered Module 8 results and the Module 9 serving results (plan first, then your go). Optional before teardown of accounts: delete the `ott-dev` access key and the Zilliz keys when the project is finished (`reports/module9_account_setup.md`).
-- Then checkpoint 5 (demo + latency; scripts still to write, predictions committed first) and 6 (teardown).
-- Test is spent: no more test runs. After serving: the final MBA report using the pre-registered results above.
+## 2026-10-27 — Final report written and assembled
+Sources: `reports/final/` (Markdown chapters, front matter, Appendices A to H, figures). Output: `reports/final/OTT_Recommender_Report.docx` (about 18,000 words, APA 7th).
+- Every figure is drawn from saved results by `scripts/make_report_figures.py`; the Word file is built by `scripts/build_report_docx.py`; `scripts/check_report_style.py` checks the text.
+- References checked against their Crossref DOI records; one page range corrected (record: `reports/final/REFERENCE_CHECKS.md`).
+- Fixed during writing: the bandit set sizes in Chapter 5 now use the test-window counts.
+
+## 2026-10-27 — Repository: README and MIT license
+- `README.md` (overview, results with simulation labels, setup, pipeline order, tests, deployment pointer, data credits), `data/README.md`, `LICENSE` (MIT; covers the code and reports, not the datasets).
+
+## 2026-11-03 — Repository tidy-up before sharing with the guide
+- Full history scanned before making the repository public: no keys, endpoints or account numbers in any commit (only the fake ones inside tests).
+- README "Start here" tour for reviewers; `reports/README.md` index of every report file; reference checks renamed to `REFERENCE_CHECKS.md` with neutral wording.
+
+## Status
+- **The project is complete.** All modules (0 to 9) are done, the serving stack was deployed, measured and fully torn down, and the final report is written.
+- The test set is spent: no more test runs. Any further experiment (for example a larger user sample) is a new study, reported next to these results, never in place of them.
+- Housekeeping for the owner: delete the `ott-dev` access key and the Zilliz keys (`reports/module9_account_setup.md`).
