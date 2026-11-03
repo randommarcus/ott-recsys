@@ -8,7 +8,7 @@ An MBA (Business Analytics) Semester 4 project. It builds a full movie recommend
 
 You don't need to install anything to review the project. Open these in order:
 
-1. **The report:** [`reports/final/OTT_Recommender_Report.docx`](reports/final/OTT_Recommender_Report.docx). GitHub can't preview Word files, so use the **Download** button. For a quick read on GitHub, start with the [Executive Summary](reports/final/00_4_executive_summary.md).
+1. **The report:** [`reports/final/OTT_Recommender_Report.pdf`](reports/final/OTT_Recommender_Report.pdf) opens right in the browser (73 pages; the Executive Summary starts on page 4). The editable Word version is [`OTT_Recommender_Report.docx`](reports/final/OTT_Recommender_Report.docx).
 2. **The results:** [`reports/module8_test_results.txt`](reports/module8_test_results.txt). The one-time test run, with 95% intervals.
 3. **What was predicted first:** [`reports/module8_predictions_vs_actuals.md`](reports/module8_predictions_vs_actuals.md). Every prediction was committed before the test was opened, and the failed ones are reported as they are.
 4. **The demo:** [`reports/module9_demo.html`](reports/module9_demo.html). Lists returned by the deployed service. Download it and open it in a browser (GitHub shows it as code).

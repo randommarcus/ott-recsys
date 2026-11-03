@@ -10,7 +10,8 @@ Every number in the final report comes from one of these files. Each was written
 
 | File | What it is |
 |---|---|
-| `final/OTT_Recommender_Report.docx` | The final project report (download to open) |
+| `final/OTT_Recommender_Report.pdf` | The final project report (opens in the browser) |
+| `final/OTT_Recommender_Report.docx` | The same report as an editable Word file (download to open) |
 | `module8_test_results.txt` | The one-time test results: the main evidence |
 | `module8_predictions_vs_actuals.md` | What was predicted before the test against what happened |
 | `TEST_UNLOCK_LOG.json` | Proof that the test set was opened once (`"attempts": 1`) |
