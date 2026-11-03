@@ -30,9 +30,9 @@ The sections below give the supporting evidence. Unlike Table 5.1, those numbers
 
 ## 5.2 Candidate Generation
 
-Figure 5.3 compares four ways of building the candidate pool over the whole catalog of 33,392 movies.
+Figure 5.2 compares four ways of building the candidate pool over the whole catalog of 33,392 movies.
 
-![Figure 5.3 How much of each user's future likes lands in the top 200, test set. Orange bars count only likes on movies that had no likes in training](figures/fig5_3_retrieval.png)
+![Figure 5.2 How much of each user's future likes lands in the top 200, test set. Orange bars count only likes on movies that had no likes in training](figures/fig5_3_retrieval.png)
 
 The two-tower model leads (Recall@200 of 0.585), followed by item-kNN (0.538) and popularity (0.354). The content model on its own is weak overall (0.078), which is expected: a description tells you less about taste than thousands of other people's ratings do.
 
@@ -42,9 +42,9 @@ The lane's value shows best on the calendar split, where real new releases exist
 
 ## 5.3 Ranking
 
-Figure 5.2 shows how different methods order the same 230 candidates on the test set.
+Figure 5.3 shows how different methods order the same 230 candidates on the test set.
 
-![Figure 5.2 End-to-end NDCG@10 on the test set when the same 230 candidates are ordered by different methods (95% intervals)](figures/fig5_2_reranking.png)
+![Figure 5.3 End-to-end NDCG@10 on the test set when the same 230 candidates are ordered by different methods (95% intervals)](figures/fig5_2_reranking.png)
 
 Three things stand out.
 

@@ -66,6 +66,7 @@ def setup(doc):
         st = doc.styles[f"Heading {lvl}"]
         st.font.name, st.font.size, st.font.bold = "Times New Roman", Pt(size), True
         st.element.rPr.rFonts.set(qn("w:eastAsia"), "Times New Roman")
+    sec.different_first_page_header_footer = True  # no page number on the title page
     page_number_footer(sec)
 
 
@@ -75,6 +76,12 @@ def flush_table(doc, rows):
     t.style = "Table Grid"
     t.alignment = WD_TABLE_ALIGNMENT.CENTER
     for i, row in enumerate(cells):
+        tr_pr = t.rows[i]._tr.get_or_add_trPr()
+        no_split = OxmlElement("w:cantSplit")  # a row never breaks across two pages
+        tr_pr.append(no_split)
+        if i == 0:
+            header = OxmlElement("w:tblHeader")  # the header row repeats on each page of a long table
+            tr_pr.append(header)
         for j, val in enumerate(row):
             cell = t.cell(i, j)
             cell.paragraphs[0].paragraph_format.line_spacing = 1.0
@@ -86,24 +93,24 @@ def flush_table(doc, rows):
     doc.add_paragraph()
 
 
-def captions(files):
-    """Figure and table titles in document order, for the generated lists."""
-    figs, tabs = [], []
-    for f in files:
-        for line in f.read_text().splitlines():
-            m = re.match(r"^!\[(Figure [A-Z0-9]+\.\d+) (.*)\]\(", line.strip())
-            if m:
-                figs.append(f"{m.group(1)}  {m.group(2)}")
-            t = re.match(r"^\*\*(Table [A-Z0-9]+\.\d+)\*\* \*(.*)\*\s*$", line.strip())
-            if t:
-                tabs.append(f"{t.group(1)}  {t.group(2)}")
-    return figs, tabs
+FIG_CAPTION, TAB_CAPTION = "Figure Caption", "Table Caption"
+TABLE_TITLE = re.compile(r"^\*\*(Table [A-Z0-9]+\.\d+)\*\* \*(.*)\*\s*$")
 
 
-def add_toc(doc):
+def add_caption_styles(doc):
+    """Own styles for figure and table titles, so Word can list them with page numbers."""
+    from docx.enum.style import WD_STYLE_TYPE
+    for name in (FIG_CAPTION, TAB_CAPTION):
+        st = doc.styles.add_style(name, WD_STYLE_TYPE.PARAGRAPH)
+        st.base_style = doc.styles["Normal"]
+        st.quick_style = True
+
+
+def add_toc(doc, switches='\\o "1-2" \\h \\z \\u'):
+    """A Word field that builds a list with page numbers when updated (Ctrl+A, then F9)."""
     p = doc.add_paragraph()
     run = p.add_run()
-    for tag, text in (("begin", None), (None, 'TOC \\o "1-2" \\h \\z \\u'), ("separate", None)):
+    for tag, text in (("begin", None), (None, f"TOC {switches}"), ("separate", None)):
         if tag:
             el = OxmlElement("w:fldChar")
             el.set(qn("w:fldCharType"), tag)
@@ -112,18 +119,11 @@ def add_toc(doc):
             el.set(qn("xml:space"), "preserve")
             el.text = text
         run._r.append(el)
-    run2 = p.add_run("Right-click here and choose Update Field (or press F9) to build the table of contents.")
+    run2 = p.add_run("Press Ctrl+A, then F9, to fill in this list with page numbers.")
     run2.italic = True
     end = OxmlElement("w:fldChar")
     end.set(qn("w:fldCharType"), "end")
     run2._r.append(end)
-
-
-def ask_word_to_update_fields(doc):
-    settings = doc.settings.element
-    el = OxmlElement("w:updateFields")
-    el.set(qn("w:val"), "true")
-    settings.append(el)
 
 
 def add_title_page(doc, path: Path):
@@ -151,8 +151,13 @@ def add_chapter(doc, path: Path, first: bool, all_files=()):
 
     def flush_para():
         if para:
-            p = doc.add_paragraph()
-            add_runs(p, " ".join(s.strip() for s in para))
+            text = " ".join(s.strip() for s in para)
+            if TABLE_TITLE.match(text):  # a table title: listed in the List of Tables, kept with its table
+                p = doc.add_paragraph(style=TAB_CAPTION)
+                p.paragraph_format.keep_with_next = True
+            else:
+                p = doc.add_paragraph()
+            add_runs(p, text)
             para.clear()
 
     for line in lines + [""]:
@@ -172,11 +177,8 @@ def add_chapter(doc, path: Path, first: bool, all_files=()):
             elif line.strip() == "<!-- pagebreak -->":
                 doc.add_page_break()
             else:
-                figs, tabs = captions(all_files)
-                for entry in (figs if "FIGURES" in line else tabs):
-                    q = doc.add_paragraph(entry)
-                    q.paragraph_format.line_spacing = 1.15
-                    q.paragraph_format.space_after = Pt(2)
+                style = FIG_CAPTION if "FIGURES" in line else TAB_CAPTION
+                add_toc(doc, f'\\h \\z \\t "{style},1"')
             continue
         if m:
             flush_para()
@@ -191,7 +193,8 @@ def add_chapter(doc, path: Path, first: bool, all_files=()):
                 doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
             else:
                 doc.add_paragraph(f"[figure to be added: {img.group(2)}]")
-            cap = doc.add_paragraph()
+            doc.paragraphs[-1].paragraph_format.keep_with_next = True  # figure and its caption stay on one page
+            cap = doc.add_paragraph(style=FIG_CAPTION)
             cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
             parts = img.group(1).split(" ", 2)
             if len(parts) == 3 and parts[0] == "Figure":
@@ -219,7 +222,9 @@ def main(argv=None) -> int:
     files = [FINAL / f for f in args.files] if args.files else sorted(p for p in FINAL.glob("[0-9][0-9]_*.md"))
     doc = Document()
     setup(doc)
-    ask_word_to_update_fields(doc)
+    add_caption_styles(doc)
+    # No automatic field update on open: Word runs it before the pages are laid out, so every entry shows page 1.
+    # Ctrl+A then F9 in Word, after it has opened, gives the right numbers.
     for i, f in enumerate(files):
         add_chapter(doc, f, first=(i == 0), all_files=files)
     out = Path(args.out)
