@@ -8,7 +8,7 @@ The full runbook is `reports/module9_runbook.md` in the repository. Every comman
 |---|---|---|
 | 1. Account set-up (by hand) | Root MFA, budget alert, Lambda role, managed policy, IAM user and its key, local profile | (console; checklist in `reports/module9_account_setup.md`) |
 | 2. Permission test | Creates, uses and deletes tiny test resources in Frankfurt and Mumbai; reports ALLOWED or DENIED per action | `aws_permtest.py` |
-| 3. Vector database | Checks the exports, creates the three Zilliz collections and loads 49,843 movie vectors | `load_zilliz.py` |
+| 3. Vector database | Checks the exports, creates the three Zilliz collections and loads 49,843 rows (16,450 two-tower and 33,392 content vectors, plus one test row) | `load_zilliz.py` |
 | 4. Verification | Searches with the function's key through two client libraries; optional level study | `verify_zilliz.py` |
 | 5. DynamoDB | Creates two on-demand tables and loads 20,000 user records; reads 40 back | `cloudshell/load_dynamodb.py` |
 | 6. Zilliz key | Stores the key in one encrypted parameter | `put_ssm_secrets.py` |

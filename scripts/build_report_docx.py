@@ -142,12 +142,29 @@ def add_title_page(doc, path: Path):
         run.font.size = Pt(18 if i == 0 else 13 if bold else 12)
 
 
+def restart_numbering(doc, par):
+    """Make par the first item of a new numbered list (starting at 1) instead of continuing the last one."""
+    numbering = doc.part.numbering_part.element
+    base = doc.styles["List Number"].element.pPr.numPr.numId.val
+    abstract_id = numbering.num_having_numId(base).abstractNumId.val
+    num = numbering.add_num(abstract_id)
+    num.add_lvlOverride(ilvl=0).add_startOverride(1)
+    return num.numId
+
+
+def use_numbering(par, num_id):
+    num_pr = par._p.get_or_add_pPr().get_or_add_numPr()
+    num_pr.get_or_add_ilvl().val = 0
+    num_pr.get_or_add_numId().val = num_id
+
+
 def add_chapter(doc, path: Path, first: bool, all_files=()):
     if "<!-- titlepage -->" in path.read_text():
         add_title_page(doc, path)
         return
     lines = path.read_text().splitlines()
     table, para = [], []
+    list_num = [None]  # numbering id of the numbered list in progress, if any
 
     def flush_para():
         if para:
@@ -168,6 +185,7 @@ def add_chapter(doc, path: Path, first: bool, all_files=()):
         if table:
             flush_table(doc, table)
             table = []
+            list_num[0] = None
         m = re.match(r"^(#{1,3}) (.*)", line)
         img = re.match(r"^!\[(.*)\]\((.*)\)\s*$", line.strip())
         if line.strip() in ("[[TOC]]", "[[LIST_OF_FIGURES]]", "[[LIST_OF_TABLES]]", "<!-- pagebreak -->"):
@@ -179,6 +197,7 @@ def add_chapter(doc, path: Path, first: bool, all_files=()):
             else:
                 style = FIG_CAPTION if "FIGURES" in line else TAB_CAPTION
                 add_toc(doc, f'\\h \\z \\t "{style},1"')
+            list_num[0] = None
             continue
         if m:
             flush_para()
@@ -207,11 +226,18 @@ def add_chapter(doc, path: Path, first: bool, all_files=()):
             add_runs(doc.add_paragraph(style="List Bullet"), line.strip()[2:])
         elif re.match(r"^\s*\d+\. ", line) and not line.startswith("#"):
             flush_para()
-            add_runs(doc.add_paragraph(style="List Number"), re.sub(r"^\s*\d+\. ", "", line))
+            item = doc.add_paragraph(style="List Number")
+            if list_num[0] is None:  # first item of a new list: start again at 1
+                list_num[0] = restart_numbering(doc, item)
+            use_numbering(item, list_num[0])
+            add_runs(item, re.sub(r"^\s*\d+\. ", "", line))
+            continue
         elif not line.strip():
             flush_para()
+            continue
         else:
             para.append(line)
+        list_num[0] = None  # anything other than a numbered item or a blank line ends the list
 
 
 def main(argv=None) -> int:

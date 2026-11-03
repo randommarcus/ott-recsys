@@ -20,7 +20,7 @@ A plain-language guide to every report file is in [`reports/README.md`](reports/
 
 A request for one user goes through four stages:
 
-1. **Candidate generation.** A two-tower model (TensorFlow/Keras, 64-dimensional) picks 200 titles from about 50,000. A content lane adds up to 30 more from Sentence-BERT embeddings of TMDB descriptions. The vectors live in Milvus (Zilliz Cloud).
+1. **Candidate generation.** A two-tower model (TensorFlow/Keras, 64-dimensional) picks 200 titles from a catalog of 33,392 movies. A content lane adds up to 30 more from Sentence-BERT embeddings of TMDB descriptions. The vectors live in Milvus (Zilliz Cloud).
 2. **Ranking.** An XGBoost ranker orders the 230 candidates using 37 features, including a Neural Collaborative Filtering (NCF, TensorFlow) score, the hour, the day and the session length.
 3. **New releases.** A UCB multi-armed bandit (c = 0.2) fills reserved slots with new titles and learns from feedback.
 4. **Serving.** An AWS Lambda function (Python 3.12, numpy only) reads the user's record from DynamoDB, scores and returns the list. TensorFlow runs offline only; the function gets precomputed embeddings and a numpy copy of the models.
