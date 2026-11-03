@@ -8,12 +8,3 @@ Semester 4
 [[GAP]]
 Submitted by
 **Sudarshan**
-[Roll number]
-[[GAP]]
-Under the guidance of
-**[Guide's name]**
-[Designation, Department]
-[[GAP]]
-**[Institute name]**
-[University name]
-[Month Year]
