@@ -158,4 +158,4 @@ The code is released under the [MIT License](LICENSE). The license covers this r
 
 ## Author
 
-Sudarshan, MBA Business Analytics, Semester 4.
+Sudarshan, MBA Business Analytics, Marwadi University.
